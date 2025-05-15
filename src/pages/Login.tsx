@@ -1,10 +1,15 @@
 import { useState, type FormEvent, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { TextInput, Button, Paper, Title, Alert, Stack, Loader, Text } from "@mantine/core";
 import { useLocation } from "wouter";
 
 export default function Login() {
-  const { signIn, isLoading: authLoading, authError, clearAuthError, session } = useAuth();
+  const {
+    signIn,
+    isLoading: authLoading,
+    authError,
+    clearAuthError,
+    session,
+  } = useAuth();
   const [email, setEmail] = useState(import.meta.env.VITE_TEST_EMAIL || "");
   const [pw, setPw] = useState(import.meta.env.VITE_TEST_PASSWORD || "");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -31,40 +36,55 @@ export default function Login() {
 
   if (authLoading && !session) {
     return (
-      <div style={{ textAlign: "center", marginTop: 100 }}>
-        <Loader size="xl" />
-        <Text mt="md">Checking authentication…</Text>
+      <div>
+        <div>⏳</div>
+        <div>Checking authentication…</div>
       </div>
     );
   }
 
   return (
-    <Paper shadow="xs" p="xl" style={{ maxWidth: 600, margin: "auto" }}>
-      <Title order={2} ta="center" mb="lg">
-        Login
-      </Title>
-      {feedback && <Alert color="red" mb="md" withCloseButton onClose={() => setFeedback(null)}>{feedback}</Alert>}
+    <div>
+      <h2>Login</h2>
+      {feedback && (
+        <div>
+          {feedback}
+          <button
+            onClick={() => setFeedback(null)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <form onSubmit={onSubmit}>
-        <Stack>
-          <TextInput
-            label="Email"
-            type="email"
-            required
-            value={email}
-            onChange={e => setEmail(e.currentTarget.value)}
-          />
-          <TextInput
-            label="Password"
-            type="password"
-            required
-            value={pw}
-            onChange={e => setPw(e.currentTarget.value)}
-          />
-          <Button type="submit" loading={authLoading} fullWidth>
-            Login
-          </Button>
-        </Stack>
+        <div>
+          <label>
+            <div>Email</div>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+            />
+          </label>
+          <label>
+            <div>Password</div>
+            <input
+              type="password"
+              required
+              value={pw}
+              onChange={(e) => setPw(e.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={authLoading}
+          >
+            {authLoading ? "Logging in..." : "Login"}
+          </button>
+        </div>
       </form>
-    </Paper>
+    </div>
   );
 }
