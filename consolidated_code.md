@@ -1,46 +1,55 @@
-<Date> May 15, 2025 11:48</Date>
+<Date> May 15, 2025 12:27</Date>
 
 ```App.tsx
 import Home from "@/pages/Home";
-import ProfilePage from "@/pages/ProfilePage";
 import ErrorPage from "@/pages/Error";
 import { Link, Route, Switch } from "wouter";
 import "@mantine/core/styles.css";
 import { MantineProvider } from "@mantine/core";
 
+// New Imports
+import { AuthProvider } from "@/contexts/AuthContext";
+import PrivateRoute from "@/components/PrivateRoute";
+import Section from "@/pages/private/Section";
+
 export default function App() {
   return (
-    <MantineProvider>
-      <nav style={{ padding: "10px 20px", marginBottom: "20px", borderBottom: "1px solid #ccc", background: "#f9f9f9" }}>
-        <Link href="/" style={{ marginRight: "15px", textDecoration: "none" }}>
-          Home
-        </Link>
-        <Link href="/users/1" style={{ marginRight: "15px", textDecoration: "none" }}>
-          Profile (User 1)
-        </Link>
-        <Link href="/users/alex" style={{ marginRight: "15px", textDecoration: "none" }}>
-          Profile (User Alex)
-        </Link>
-        <Link href="/non-existent-page" style={{ textDecoration: "none" }}>
-          Test 404
-        </Link>
-      </nav>
+    <AuthProvider>
+      <MantineProvider>
+        <nav style={{ padding: "10px 20px", marginBottom: "20px", borderBottom: "1px solid #ccc", background: "#f9f9f9", display: "flex", gap: "15px", alignItems: "center" }}>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            Home / Login
+          </Link>
+          <Link href="/private/profile/ec2-525-61" style={{ textDecoration: "none" }}>
+            Link to Citation for 'ec2-525-61' (Private)
+          </Link>
+          <Link href="/non-existent-page" style={{ textDecoration: "none" }}>
+            Test 404
+          </Link>
+        </nav>
 
-      <div style={{ padding: "0 20px" }}>
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/users/:id" component={ProfilePage} />
+        <div style={{ padding: "0 20px" }}>
+          <Switch>
+            <Route path="/" component={Home} />
+            
+            <Route path="/private/profile/:id">
+              {(_params) => (
+                <PrivateRoute>
+                  <Section />
+                </PrivateRoute>
+              )}
+            </Route>
 
-          {/* 2. Use the ErrorPage component for the 404 route */}
-          <Route>
-            <ErrorPage
-              title="404: Page Not Found"
-              message="Sorry, the page you are looking for does not exist."
-            />
-          </Route>
-        </Switch>
-      </div>
-    </MantineProvider>
+            <Route>
+              <ErrorPage
+                title="404: Page Not Found"
+                message="Sorry, the page you are looking for does not exist."
+              />
+            </Route>
+          </Switch>
+        </div>
+      </MantineProvider>
+    </AuthProvider>
   );
 }
 ```
@@ -188,6 +197,145 @@ createRoot(document.getElementById('root')!).render(
 /// <reference types="vite/client" />
 ```
 
+```components/PrivateRoute.tsx
+import { type ReactNode, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Redirect, useLocation } from 'wouter';
+import { Loader } from '@mantine/core'; // Using Mantine Loader
+
+interface PrivateRouteProps {
+  children: ReactNode;
+}
+
+export default function PrivateRoute({ children }: PrivateRouteProps) {
+  const { session, isLoading } = useAuth();
+  const [, navigate] = useLocation(); // For programmatic navigation if needed
+
+  useEffect(() => {
+    // This effect can handle scenarios where session might become null
+    // after initial load, though onAuthStateChange in AuthContext should manage redirects.
+    if (!isLoading && !session) {
+      navigate('/', { replace: true });
+    }
+  }, [isLoading, session, navigate]);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <Loader />
+      </div>
+    );
+  }
+
+  if (!session) {
+    // Redirect component is preferred for declarative routing
+    return <Redirect to="/" />;
+  }
+
+  return <>{children}</>;
+}
+```
+
+```contexts/AuthContext.tsx
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { supabase, signIn as supabaseSignIn, signOut as supabaseSignOut } from '@/supabase/client';
+import type { Session, User } from '@supabase/supabase-js';
+import { useLocation } from 'wouter';
+
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  isLoading: boolean;
+  signIn: (email: string, pass: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  authError: string | null;
+  clearAuthError: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    setIsLoading(true);
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsLoading(false);
+    }).catch(() => {
+      setIsLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setIsLoading(false);
+
+        if (event === "SIGNED_IN") {
+          // Optional: Redirect to a specific page after sign-in
+          // navigate('/private/profile/me', { replace: true }); // Example
+        } else if (event === "SIGNED_OUT") {
+          // Optional: Redirect to home/login page after sign-out
+          navigate('/', { replace: true });
+        }
+      }
+    );
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [navigate]);
+
+  const signIn = async (email: string, pass: string) => {
+    setIsLoading(true);
+    setAuthError(null);
+    try {
+      // onAuthStateChange will handle setting session and user
+      await supabaseSignIn(email, pass);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'An unknown error occurred during sign in.');
+      setIsLoading(false); // Ensure loading is false on error
+    }
+    // setIsLoading(false) will be handled by onAuthStateChange or the catch block
+  };
+
+  const signOut = async () => {
+    setIsLoading(true);
+    setAuthError(null);
+    try {
+      await supabaseSignOut();
+      // onAuthStateChange will handle setting session and user to null and navigation
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'An unknown error occurred during sign out.');
+      setIsLoading(false); // Ensure loading is false on error
+    }
+    // setIsLoading(false) will be handled by onAuthStateChange or the catch block
+  };
+  
+  const clearAuthError = () => setAuthError(null);
+
+  return (
+    <AuthContext.Provider value={{ session, user, isLoading, signIn, signOut, authError, clearAuthError }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+```
+
 ```lib/utils.ts
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -224,162 +372,161 @@ export default function ErrorPage({
 
 ```pages/Home.tsx
 import { useState, type FormEvent, useEffect } from "react";
-import { supabase, signIn, signOut } from "@/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { fetchDocuments, type Doc } from "@/supabase/documents";
-import type { Session } from "@supabase/supabase-js";
+import { Button, TextInput, Paper, Title, Text, Alert, Group, Code, Stack, Loader } from "@mantine/core"; // Using Mantine components
 
 export default function Home() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session, user, signIn, signOut: authSignOut, isLoading: authIsLoading, authError, clearAuthError } = useAuth();
+  
   const [docs, setDocs] = useState<Doc[]>([]);
-  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(
-    null
-  );
-  const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState<string>("");
-  const [pw, setPw] = useState<string>("");
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [fetchBusy, setFetchBusy] = useState(false);
+  
+  const [email, setEmail] = useState<string>(import.meta.env.VITE_TEST_EMAIL || "");
+  const [pw, setPw] = useState<string>(import.meta.env.VITE_TEST_PASSWORD || "");
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-    })();
+    if (authError) {
+      setFeedbackMsg({ text: authError, type: 'error' });
+    }
+  }, [authError]);
 
-    const sub = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setMsg({ text: _e === "SIGNED_IN" ? "Logged out" : "Logged in" });
-      if (_e === "SIGNED_OUT") setDocs([]);
-    }).data.subscription;
-
-    return () => sub.unsubscribe();
-  }, [supabase]);
-
-  const fetchDocs = async () => {
-    if (!session) return setMsg({ text: "Not authenticated", error: true });
-    setBusy(true);
-    setMsg(null);
+  const fetchUserDocs = async () => {
+    if (!session) {
+      setFeedbackMsg({ text: "Authentication required to fetch documents.", type: 'error' });
+      return;
+    }
+    setFetchBusy(true);
+    setFeedbackMsg(null); 
+    clearAuthError();
     try {
-      const data = await fetchDocuments(session.access_token);
+      const data: Doc[] = await fetchDocuments(session.access_token);
       setDocs(data);
-      setMsg({
-        text: data.length ? `Found ${data.length} docs` : "No docs found",
+      setFeedbackMsg({
+        text: data.length ? `Found ${data.length} document(s).` : "No documents found for your account.",
+        type: 'success',
       });
     } catch (e: unknown) {
-      setMsg({
-        text: `Fetch error: ${e instanceof Error ? e.message : String(e)}`,
-        error: true,
+      setFeedbackMsg({
+        text: `Document fetch error: ${e instanceof Error ? e.message : String(e)}`,
+        type: 'error',
       });
     }
-    setBusy(false);
+    setFetchBusy(false);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    try {
-      const session: Session = await signIn(email, pw);
-      setSession(session);
-      console.log("logged in:", session);
-    } catch (err) {
-      console.error(err);
-    }
+    clearAuthError();
+    setFeedbackMsg(null);
+    await signIn(email, pw);
   };
+
+  const handleLogout = async () => {
+    clearAuthError();
+    setFeedbackMsg(null);
+    await authSignOut();
+    setDocs([]);
+  };
+  
+  if (authIsLoading && !session) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+        <Loader size="xl" />
+        <Text mt="md">Loading authentication status...</Text>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        padding: 20,
-        fontFamily: "Arial, sans-serif",
-        maxWidth: 600,
-        margin: "auto",
-      }}
-    >
-      <h2>Supabase + FastAPI Demo</h2>
-      {msg && <p style={{ color: msg.error ? "red" : "green" }}>{msg.text}</p>}
+    <Paper shadow="xs" p="xl" style={{ maxWidth: 600, margin: "auto" }}>
+      <Title order={2} ta="center" mb="lg">
+        {session ? "Welcome Back!" : "AI CFO Assistant"}
+      </Title>
 
+      {feedbackMsg && (
+        <Alert 
+          title={feedbackMsg.type === 'error' ? "Error" : "Notification"} 
+          color={feedbackMsg.type === 'error' ? 'red' : 'blue'} 
+          mb="md"
+          onClose={() => setFeedbackMsg(null)}
+          withCloseButton
+        >
+          {feedbackMsg.text}
+        </Alert>
+      )}
+      
       {!session ? (
-        <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", marginBottom: 8 }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", marginBottom: 8 }}
-          />
-          <button disabled={busy} style={{ padding: "8px 12px" }}>
-            {busy ? "Logging in…" : "Login"}
-          </button>
+        <form onSubmit={handleLoginSubmit}>
+          <Stack>
+            <TextInput
+              label="Email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+              required
+            />
+            <TextInput
+              label="Password"
+              type="password"
+              placeholder="Your password"
+              value={pw}
+              onChange={(e) => setPw(e.currentTarget.value)}
+              required
+            />
+            <Button type="submit" loading={authIsLoading} fullWidth>
+              Login
+            </Button>
+          </Stack>
         </form>
       ) : (
-        <>
-          <p>Welcome, {session.user.email}</p>
-          <pre
-            style={{
-              fontSize: "0.8em",
-              wordBreak: "break-all",
-              maxHeight: 60,
-              overflowY: "auto",
-              border: "1px solid #ccc",
-              padding: 5,
-            }}
-          >
-            {session.access_token}
-          </pre>
-          <button
-            onClick={fetchDocs}
-            disabled={busy}
-            style={{ marginRight: 8, padding: "8px 12px" }}
-          >
-            {busy ? "Fetching…" : "Fetch Docs"}
-          </button>
-          <button
-            onClick={signOut}
-            disabled={busy}
-            style={{ padding: "8px 12px" }}
-          >
-            Logout
-          </button>
-        </>
-      )}
+        <Stack>
+          <Text>Logged in as: <Code>{user?.email}</Code></Text>
+          
+          <Group>
+            <Button onClick={fetchUserDocs} loading={fetchBusy || authIsLoading}>
+              Fetch My Documents
+            </Button>
+            <Button variant="outline" onClick={handleLogout} loading={authIsLoading}>
+              Logout
+            </Button>
+          </Group>
 
-      {docs.length > 0 && (
-        <ul style={{ marginTop: 16, padding: 0, listStyle: "none" }}>
-          {docs.map((d) => (
-            <li
-              key={d.id}
-              style={{ border: "1px solid #eee", padding: 8, marginBottom: 4 }}
-            >
-              {d.filename} (ID: {d.id})
-            </li>
-          ))}
-        </ul>
+          {docs.length > 0 && (
+            <>
+              <Title order={4} mt="lg">Your Documents:</Title>
+              <Stack gap="xs" mt="xs">
+                {docs.map((d) => (
+                  <Paper key={d.id} p="sm" withBorder>
+                    <Text>{d.filename} (ID: {d.id})</Text>
+                  </Paper>
+                ))}
+              </Stack>
+            </>
+          )}
+        </Stack>
       )}
-    </div>
+    </Paper>
   );
 }
 ```
 
-```pages/ProfilePage.tsx
+```pages/private/Section.tsx
 import { useParams } from "wouter";
 
-export default function ProfilePage() {
+export default function Section() {
   const params = useParams();
-  const userId = params.id; 
+  const sectionId = params.id; 
 
   return (
-    <div style={{ padding: "20px", border: "1px solid #eee", marginTop: "20px" }}>
-      <h2>User Profile Page</h2>
-      {userId ? (
-        <p>Displaying profile for User ID: <strong>{userId}</strong></p>
+    <div>
+      <h2>Section Page</h2>
+      {sectionId ? (
+        <p>Displaying Section for Section ID: <strong>{sectionId}</strong></p>
       ) : (
-        <p>User ID not found in URL.</p>
+        <p>Section ID not found in URL.</p>
       )}
       <p>This page demonstrates how wouter uses route parameters.</p>
     </div>
