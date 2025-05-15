@@ -12,14 +12,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "@tabler/icons-react": "^3.31.0",
-    "@tailwindcss/vite": "^4.1.6",
+    "@tailwindcss/vite": "^4.1.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.510.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.0",
-    "tailwindcss": "^4.1.6",
+    "tailwindcss": "^4.1.7",
     "wouter": "^3.7.0"
   },
   "devDependencies": {
@@ -28,6 +28,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
+    "daisyui": "^5.0.35",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

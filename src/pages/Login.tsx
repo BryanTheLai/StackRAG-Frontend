@@ -36,55 +36,68 @@ export default function Login() {
 
   if (authLoading && !session) {
     return (
-      <div>
-        <div>⏳</div>
-        <div>Checking authentication…</div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+        <div className="mt-4 text-lg">Checking authentication…</div>
       </div>
     );
   }
 
   return (
-    <div>
-      <h2>Login</h2>
-      {feedback && (
-        <div>
-          {feedback}
-          <button
-            onClick={() => setFeedback(null)}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      <form onSubmit={onSubmit}>
-        <div>
-          <label>
-            <div>Email</div>
+    <div className="flex items-center justify-center min-h-[80vh] bg-base-200">
+      <div className="w-full max-w-md p-8 rounded-lg shadow-lg bg-base-100">
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+        {feedback && (
+          <div className="alert alert-error mb-4 flex justify-between items-center">
+            <span>{feedback}</span>
+            <button
+              className="btn btn-sm btn-circle btn-ghost"
+              onClick={() => setFeedback(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Email</span>
+            </label>
             <input
+              className="input input-bordered w-full"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.currentTarget.value)}
+              autoComplete="username"
             />
-          </label>
-          <label>
-            <div>Password</div>
+          </div>
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Password</span>
+            </label>
             <input
+              className="input input-bordered w-full"
               type="password"
               required
               value={pw}
               onChange={(e) => setPw(e.currentTarget.value)}
+              autoComplete="current-password"
             />
-          </label>
+          </div>
           <button
             type="submit"
+            className="btn btn-primary w-full mt-2"
             disabled={authLoading}
           >
+            {authLoading ? (
+              <span className="loading loading-spinner loading-xs mr-2"></span>
+            ) : null}
             {authLoading ? "Logging in..." : "Login"}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
