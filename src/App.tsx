@@ -8,33 +8,59 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import PrivateRoute from "@/components/PrivateRoute";
 import Section from "@/pages/private/Section";
 import Profile from "@/pages/private/Profile";
+import Dashboard from "@/pages/private/Dashboard";
+import Login from "@/pages/Login";
 
 export default function App() {
   return (
     <AuthProvider>
       <MantineProvider>
-        <nav style={{ padding: "10px 20px", marginBottom: "20px", borderBottom: "1px solid #ccc", background: "#f9f9f9", display: "flex", gap: "15px", alignItems: "center" }}>
+        <nav
+          style={{
+            padding: "10px 20px",
+            marginBottom: "20px",
+            borderBottom: "1px solid #ccc",
+            background: "#f9f9f9",
+            display: "flex",
+            gap: "15px",
+            alignItems: "center",
+          }}
+        >
           <Link href="/" style={{ textDecoration: "none" }}>
             Home
           </Link>
-          <Link href="/login" style={{ textDecoration: "none" }}>
-            Login
-          </Link>
-          <Link href="/private/profile/ec2-525-61" style={{ textDecoration: "none" }}>
+          
+          <Link
+            href="/private/profile/ec2-525-61"
+            style={{ textDecoration: "none" }}
+          >
             Link to Profile for 'ec2-525-61' (Private)
           </Link>
-          <Link href="/private/section/ec2-525-61" style={{ textDecoration: "none" }}>
+          <Link
+            href="/private/section/ec2-525-61"
+            style={{ textDecoration: "none" }}
+          >
             Link to Section for 'ec2-525-61' (Private)
           </Link>
           <Link href="/non-existent-page" style={{ textDecoration: "none" }}>
             Test 404
+          </Link>
+          <Link href="/login" style={{ textDecoration: "none" }}>
+            Login
           </Link>
         </nav>
 
         <div style={{ padding: "0 20px" }}>
           <Switch>
             <Route path="/" component={Home} />
-            
+            <Route path="/login" component={Login} />
+
+            <Route path="/private/dashboard">
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            </Route>
+
             <Route path="/private/profile/:id">
               {(_params) => (
                 <PrivateRoute>

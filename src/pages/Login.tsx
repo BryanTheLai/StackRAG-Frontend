@@ -1,67 +1,39 @@
 import { useState, type FormEvent, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchDocuments, type Doc } from "@/supabase/documents";
-import { Button, TextInput, Paper, Title, Text, Alert, Group, Code, Stack, Loader } from "@mantine/core"; // Using Mantine components
+import { TextInput, Button, Paper, Title, Alert, Stack, Loader, Text } from "@mantine/core";
+import { useLocation } from "wouter";
 
-export default function Home() {
-  const { session, user, signIn, signOut: authSignOut, isLoading: authIsLoading, authError, clearAuthError } = useAuth();
-  
-  const [docs, setDocs] = useState<Doc[]>([]);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [fetchBusy, setFetchBusy] = useState(false);
-  
-  const [email, setEmail] = useState<string>(import.meta.env.VITE_TEST_EMAIL || "");
-  const [pw, setPw] = useState<string>(import.meta.env.VITE_TEST_PASSWORD || "");
+export default function Login() {
+  const { signIn, isLoading: authLoading, authError, clearAuthError, session } = useAuth();
+  const [email, setEmail] = useState(import.meta.env.VITE_TEST_EMAIL || "");
+  const [pw, setPw] = useState(import.meta.env.VITE_TEST_PASSWORD || "");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     if (authError) {
-      setFeedbackMsg({ text: authError, type: 'error' });
+      setFeedback(authError);
     }
   }, [authError]);
 
-  const fetchUserDocs = async () => {
-    if (!session) {
-      setFeedbackMsg({ text: "Authentication required to fetch documents.", type: 'error' });
-      return;
+  useEffect(() => {
+    if (session) {
+      navigate("/private/dashboard", { replace: true });
     }
-    setFetchBusy(true);
-    setFeedbackMsg(null); 
-    clearAuthError();
-    try {
-      const data: Doc[] = await fetchDocuments(session.access_token);
-      setDocs(data);
-      setFeedbackMsg({
-        text: data.length ? `Found ${data.length} document(s).` : "No documents found for your account.",
-        type: 'success',
-      });
-    } catch (e: unknown) {
-      setFeedbackMsg({
-        text: `Document fetch error: ${e instanceof Error ? e.message : String(e)}`,
-        type: 'error',
-      });
-    }
-    setFetchBusy(false);
-  };
+  }, [session, navigate]);
 
-  const handleLoginSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearAuthError();
-    setFeedbackMsg(null);
+    setFeedback(null);
     await signIn(email, pw);
   };
 
-  const handleLogout = async () => {
-    clearAuthError();
-    setFeedbackMsg(null);
-    await authSignOut();
-    setDocs([]);
-  };
-  
-  if (authIsLoading && !session) {
+  if (authLoading && !session) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+      <div style={{ textAlign: "center", marginTop: 100 }}>
         <Loader size="xl" />
-        <Text mt="md">Loading authentication status...</Text>
+        <Text mt="md">Checking authentication…</Text>
       </div>
     );
   }
@@ -69,72 +41,30 @@ export default function Home() {
   return (
     <Paper shadow="xs" p="xl" style={{ maxWidth: 600, margin: "auto" }}>
       <Title order={2} ta="center" mb="lg">
-        {session ? "Welcome Back!" : "AI CFO Assistant"}
+        Login
       </Title>
-
-      {feedbackMsg && (
-        <Alert 
-          title={feedbackMsg.type === 'error' ? "Error" : "Notification"} 
-          color={feedbackMsg.type === 'error' ? 'red' : 'blue'} 
-          mb="md"
-          onClose={() => setFeedbackMsg(null)}
-          withCloseButton
-        >
-          {feedbackMsg.text}
-        </Alert>
-      )}
-      
-      {!session ? (
-        <form onSubmit={handleLoginSubmit}>
-          <Stack>
-            <TextInput
-              label="Email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.currentTarget.value)}
-              required
-            />
-            <TextInput
-              label="Password"
-              type="password"
-              placeholder="Your password"
-              value={pw}
-              onChange={(e) => setPw(e.currentTarget.value)}
-              required
-            />
-            <Button type="submit" loading={authIsLoading} fullWidth>
-              Login
-            </Button>
-          </Stack>
-        </form>
-      ) : (
+      {feedback && <Alert color="red" mb="md" withCloseButton onClose={() => setFeedback(null)}>{feedback}</Alert>}
+      <form onSubmit={onSubmit}>
         <Stack>
-          <Text>Logged in as: <Code>{user?.email}</Code></Text>
-          
-          <Group>
-            <Button onClick={fetchUserDocs} loading={fetchBusy || authIsLoading}>
-              Fetch My Documents
-            </Button>
-            <Button variant="outline" onClick={handleLogout} loading={authIsLoading}>
-              Logout
-            </Button>
-          </Group>
-
-          {docs.length > 0 && (
-            <>
-              <Title order={4} mt="lg">Your Documents:</Title>
-              <Stack gap="xs" mt="xs">
-                {docs.map((d) => (
-                  <Paper key={d.id} p="sm" withBorder>
-                    <Text>{d.filename} (ID: {d.id})</Text>
-                  </Paper>
-                ))}
-              </Stack>
-            </>
-          )}
+          <TextInput
+            label="Email"
+            type="email"
+            required
+            value={email}
+            onChange={e => setEmail(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Password"
+            type="password"
+            required
+            value={pw}
+            onChange={e => setPw(e.currentTarget.value)}
+          />
+          <Button type="submit" loading={authLoading} fullWidth>
+            Login
+          </Button>
         </Stack>
-      )}
+      </form>
     </Paper>
   );
 }
