@@ -9,43 +9,44 @@ import Section from "@/pages/private/Section";
 import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
 
-
 export default function App() {
   return (
     <AuthProvider>
       <Layout>
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/login" component={Login} />
+        <main className="flex-1 p-4">
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/login" component={Login} />
 
-          <Route path="/private/dashboard">
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          </Route>
-
-          <Route path="/private/profile/:id">
-            {(_params) => (
+            <Route path="/private/dashboard">
               <PrivateRoute>
-                <Profile />
+                <Dashboard />
               </PrivateRoute>
-            )}
-          </Route>
-          <Route path="/private/section/:id">
-            {(_params) => (
-              <PrivateRoute>
-                <Section />
-              </PrivateRoute>
-            )}
-          </Route>
+            </Route>
 
-          <Route>
-            <ErrorPage
-              title="404: Page Not Found"
-              message="Sorry, the page you are looking for does not exist@"
-            />
-          </Route>
-        </Switch>
+            <Route path="/private/profile/:id">
+              {(_params) => (
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              )}
+            </Route>
+            <Route path="/private/section/:id">
+              {(_params) => (
+                <PrivateRoute>
+                  <Section />
+                </PrivateRoute>
+              )}
+            </Route>
+
+            <Route>
+              <ErrorPage
+                title="404: Page Not Found"
+                message="Sorry, the page you are looking for does not exist@"
+              />
+            </Route>
+          </Switch>
+        </main>
       </Layout>
     </AuthProvider>
   );

@@ -18,15 +18,7 @@ export default function PrivateRoute({ children }: PrivateRouteProps) {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "80vh",
-          fontSize: 32,
-        }}
-      >
+      <div className="flex justify-center items-center h-[80vh] text-[32px]">
         <span role="status" aria-label="Loading">
           ⏳
         </span>
