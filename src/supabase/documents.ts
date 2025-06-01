@@ -5,7 +5,7 @@ export interface Doc {
 }
 
 export async function fetchDocuments(accessToken: string): Promise<Doc[]> {
-  const res = await fetch("http://localhost:8000/documents", {
+  const res = await fetch("http://127.0.0.1:8000/documents", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error(await res.text());
