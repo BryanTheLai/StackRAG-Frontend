@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Link } from "wouter";
+import { type ReactNode } from "react";
+import { Link, useLocation } from "wouter";
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,23 +14,25 @@ const links = [
 ];
 
 export default function Layout({ children }: LayoutProps) {
-  const [active, setActive] = useState(links[0].link);
+  const [location] = useLocation();
 
-  const items = links.map((link) => (
-    <Link
-      key={link.label}
-      href={link.link}
-      data-active={active === link.link || undefined}
-      onClick={() => {
-        setActive(link.link);
-      }}
-    >
-      {link.label}
-    </Link>
-  ));
   return (
     <>
-      <nav>{items}</nav>
+      <nav className="flex space-x-4 p-4 bg-base-100 border-b border-base-300">
+        {links.map(({ link, label }) => (
+          <Link
+            key={label}
+            href={link}
+            className={`px-3 py-2 rounded transition-colors text-base font-medium ${
+              location === link
+                ? 'bg-primary text-primary-content'
+                : 'text-neutral hover:bg-base-200'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
 
       {children}
     </>
