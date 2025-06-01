@@ -8,6 +8,7 @@ import Profile from "@/pages/private/Profile";
 import Section from "@/pages/private/Section";
 import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
+import Documents from "./pages/private/Documents";
 
 export default function App() {
   return (
@@ -21,6 +22,11 @@ export default function App() {
             <Route path="/private/dashboard">
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            </Route>
+            <Route path="/private/documents">
+              <PrivateRoute>
+                <Documents />
               </PrivateRoute>
             </Route>
 

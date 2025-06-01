@@ -12,8 +12,6 @@ const links = [
   { link: "/private/documents", label: "Documents" },
   { link: "/private/profile/ec2-525-61", label: "Profile" },
   { link: "/private/section/ec2-525-61", label: "Section" },
-  { link: "/non-existent-page", label: "Error" },
-  { link: "/", label: "Home" },
 ];
 
 export default function Sidebar({ onFilesImported }: SidebarProps) {
@@ -35,8 +33,8 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
   return (
     <>
       <div
-        className={`h-screen bg-base-100 flex flex-col justify-between border-r border-base-300 transition-width duration-200 ${
-          collapsed ? "w-16" : "w-64"
+        className={`h-screen bg-base-100 flex flex-col justify-between border-r border-base-300 transition-width duration-100 ${
+          collapsed ? "w-16" : "w-50"
         }`}
       >
         <div className="p-2">
