@@ -1,3 +1,5 @@
+import { ENDPOINTS } from "@/config/api";
+
 export interface Doc {
   id: string;
   filename: string;
@@ -5,7 +7,7 @@ export interface Doc {
 }
 
 export async function fetchDocuments(accessToken: string): Promise<Doc[]> {
-  const res = await fetch("http://127.0.0.1:8000/documents", {
+  const res = await fetch(ENDPOINTS.DOCUMENTS, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error(await res.text());
