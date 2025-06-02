@@ -4,8 +4,6 @@ import { Route, Switch } from "wouter";
 import PrivateRoute from "@/components/PrivateRoute";
 import Dashboard from "@/pages/private/Dashboard";
 import Login from "@/pages/Login";
-import Profile from "@/pages/private/Profile";
-import Section from "@/pages/private/Section";
 import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
 import Documents from "./pages/private/Documents";
@@ -28,21 +26,6 @@ export default function App() {
               <PrivateRoute>
                 <Documents />
               </PrivateRoute>
-            </Route>
-
-            <Route path="/private/profile/:id">
-              {(_params) => (
-                <PrivateRoute>
-                  <Profile />
-                </PrivateRoute>
-              )}
-            </Route>
-            <Route path="/private/section/:id">
-              {(_params) => (
-                <PrivateRoute>
-                  <Section />
-                </PrivateRoute>
-              )}
             </Route>
 
             <Route>

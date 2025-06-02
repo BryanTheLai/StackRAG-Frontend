@@ -1,4 +1,3 @@
-import { Link } from "wouter";
 import { AlertCircle } from "lucide-react";
 
 interface ErrorPageProps {
@@ -20,12 +19,14 @@ export default function ErrorPage({
           <h1 className="card-title text-3xl font-bold text-error mt-4">
             {title}
           </h1>
-          <p className="py-4 text-base-content">{message}</p>
-          {showGoHomeLink && (
+          <p className="py-4 text-base-content">{message}</p>          {showGoHomeLink && (
             <div className="card-actions justify-center">
-              <Link href="/" className="btn btn-primary">
-                Go to Homepage
-              </Link>
+              <button 
+                onClick={() => window.history.back()} 
+                className="btn btn-primary"
+              >
+                Go Back
+              </button>
             </div>
           )}
         </div>

@@ -10,8 +10,6 @@ interface SidebarProps {
 const links = [
   { link: "/private/dashboard", label: "Dashboard" },
   { link: "/private/documents", label: "Documents" },
-  { link: "/private/profile/ec2-525-61", label: "Profile" },
-  { link: "/private/section/ec2-525-61", label: "Section" },
 ];
 
 export default function Sidebar({ onFilesImported }: SidebarProps) {

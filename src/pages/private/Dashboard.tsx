@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchDocuments, type Doc } from "@/supabase/documents";
+import { fetchDocumentsAPI, type Doc } from "@/supabase/documents";
 import Sidebar from "@/components/Sidebar";
 import { CheckCircle, X } from "lucide-react";
 
@@ -27,7 +27,7 @@ export default function Dashboard() {
     setMsg(null);
     clearAuthError();
     try {
-      const data = await fetchDocuments(session.access_token);
+      const data = await fetchDocumentsAPI(session.access_token);
       setDocs(data);
       setMsg({
         text: data.length ? `Found ${data.length} documents.` : "No documents.",
