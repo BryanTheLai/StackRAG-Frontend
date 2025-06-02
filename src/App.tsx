@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
 import Documents from "./pages/private/Documents";
+import Chat from "./pages/private/Chat";
 
 export default function App() {
   return (
@@ -21,10 +22,14 @@ export default function App() {
               <PrivateRoute>
                 <Dashboard />
               </PrivateRoute>
-            </Route>
-            <Route path="/private/documents">
+            </Route>            <Route path="/private/documents">
               <PrivateRoute>
                 <Documents />
+              </PrivateRoute>
+            </Route>
+            <Route path="/private/chat">
+              <PrivateRoute>
+                <Chat />
               </PrivateRoute>
             </Route>
 

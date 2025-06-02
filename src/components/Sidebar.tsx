@@ -10,6 +10,7 @@ interface SidebarProps {
 const links = [
   { link: "/private/dashboard", label: "Dashboard" },
   { link: "/private/documents", label: "Documents" },
+  { link: "/private/chat", label: "Chat" },
 ];
 
 export default function Sidebar({ onFilesImported }: SidebarProps) {
