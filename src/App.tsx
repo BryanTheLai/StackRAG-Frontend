@@ -13,7 +13,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Layout>
-        <main className="flex-1 p-4">
+        <main>
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/login" component={Login} />
