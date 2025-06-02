@@ -47,7 +47,7 @@ export default function Chat() {
           function_response: {
             name: "retrieve_financial_chunks",
             response: {
-              output: "[...] some large JSON string of chunks [...]",
+              output: "Tesla Gross Carrying Amount for Total intangible assets in 2021 is $465 million, an increase of....",
             },
           },
         },
