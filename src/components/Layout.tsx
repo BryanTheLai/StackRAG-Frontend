@@ -6,8 +6,6 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      {children}
-    </div>
+    <div className="flex flex-col h-screen overflow-hidden">{children}</div>
   );
 }

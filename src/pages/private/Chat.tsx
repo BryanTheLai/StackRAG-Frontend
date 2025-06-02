@@ -18,48 +18,84 @@ export default function Chat() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       role: "user",
-      parts: [{ text: "What's the Gross Carrying Amount for Total intangible assets for tesla in 2021? then divide the value by 0.04215215" }]
+      parts: [
+        {
+          text: "What's the Gross Carrying Amount for Total intangible assets for tesla in 2021? then divide the value by 0.04215215",
+        },
+      ],
     },
     {
       role: "model",
-      parts: [{ function_call: { name: "retrieve_financial_chunks", args: { doc_year_start: 2021, company_name: "Tesla", doc_year_end: 2021, query_text: "Gross Carrying Amount for Total intangible assets" } } }]
+      parts: [
+        {
+          function_call: {
+            name: "retrieve_financial_chunks",
+            args: {
+              doc_year_start: 2021,
+              company_name: "Tesla",
+              doc_year_end: 2021,
+              query_text: "Gross Carrying Amount for Total intangible assets",
+            },
+          },
+        },
+      ],
     },
     {
       role: "user",
-      parts: [{ function_response: { name: "retrieve_financial_chunks", response: { output: "[...] some large JSON string of chunks [...]" } } }]
-    }
+      parts: [
+        {
+          function_response: {
+            name: "retrieve_financial_chunks",
+            response: {
+              output: "[...] some large JSON string of chunks [...]",
+            },
+          },
+        },
+      ],
+    },
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const chatDisplayRef = useRef<HTMLDivElement>(null);
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    chatDisplayRef.current?.scrollTo({ top: chatDisplayRef.current.scrollHeight, behavior: 'smooth' });
+    chatDisplayRef.current?.scrollTo({
+      top: chatDisplayRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [chatHistory]);
 
   const getMessageContent = (message: ChatMessage): string => {
     const part = message.parts[0];
     if (!part) return "(No content)";
-    
+
     if (part.text) return part.text;
-    if (part.function_call) return `Function Call: ${part.function_call.name}\nArgs: ${JSON.stringify(part.function_call.args, null, 2)}`;
-    if (part.function_response) return `Function Response: ${part.function_response.name}\nOutput: ${JSON.stringify(part.function_response.response, null, 2)}`;
-    
+    if (part.function_call)
+      return `Function Call: ${part.function_call.name}\nArgs: ${JSON.stringify(
+        part.function_call.args,
+        null,
+        2
+      )}`;
+    if (part.function_response)
+      return `Function Response: ${
+        part.function_response.name
+      }\nOutput: ${JSON.stringify(part.function_response.response, null, 2)}`;
+
     return "(No content)";
   };
 
   const getMessageLabel = (message: ChatMessage): string => {
     const part = message.parts[0];
     let label = message.role === "user" ? "You" : "Model";
-    
+
     if (part?.function_call) label += " (function_call)";
     if (part?.function_response) label += " (tool_output)";
-    
+
     return label;
   };
 
   const updateLastMessage = (text: string) => {
-    setChatHistory(prev => {
+    setChatHistory((prev) => {
       const updated = [...prev];
       const lastMessage = updated[updated.length - 1];
       if (lastMessage?.role === "model") {
@@ -75,7 +111,7 @@ export default function Chat() {
     // Add user message
     const userMessage: ChatMessage = {
       role: "user",
-      parts: [{ text: inputMessage.trim() }]
+      parts: [{ text: inputMessage.trim() }],
     };
 
     const newHistory = [...chatHistory, userMessage];
@@ -86,7 +122,7 @@ export default function Chat() {
     // Add placeholder for model response
     const modelPlaceholder: ChatMessage = {
       role: "model",
-      parts: [{ text: "Streaming model reply..." }]
+      parts: [{ text: "Streaming model reply..." }],
     };
     setChatHistory([...newHistory, modelPlaceholder]);
 
@@ -94,12 +130,12 @@ export default function Chat() {
       const payload = { history: newHistory };
 
       const response = await fetch(ENDPOINTS.CHAT + "/stream_response", {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok || !response.body) {
@@ -118,25 +154,33 @@ export default function Chat() {
         eventSourceBuffer += decoder.decode(value, { stream: true });
 
         let eolIndex;
-        while ((eolIndex = eventSourceBuffer.indexOf('\n\n')) >= 0) {
+        while ((eolIndex = eventSourceBuffer.indexOf("\n\n")) >= 0) {
           const message = eventSourceBuffer.substring(0, eolIndex);
-          eventSourceBuffer = eventSourceBuffer.substring(eolIndex + 2);          if (message.startsWith('event: stream_end')) {
+          eventSourceBuffer = eventSourceBuffer.substring(eolIndex + 2);
+          if (message.startsWith("event: stream_end")) {
             if (accumulatedText === "") {
               updateLastMessage("(Model stream ended without text)");
             }
             return;
-          } else if (message.startsWith('event: stream_error')) {
+          } else if (message.startsWith("event: stream_error")) {
             try {
-              const errorData = JSON.parse(message.substring(message.indexOf('data: ') + 'data: '.length));
-              updateLastMessage(`Stream Error: ${errorData.error || 'Unknown error'}`);
+              const errorData = JSON.parse(
+                message.substring(message.indexOf("data: ") + "data: ".length)
+              );
+              updateLastMessage(
+                `Stream Error: ${errorData.error || "Unknown error"}`
+              );
             } catch {
               updateLastMessage("Stream Error: Could not parse error details.");
             }
-          } else if (message.startsWith('data: ')) {
+          } else if (message.startsWith("data: ")) {
             try {
-              const jsonData = JSON.parse(message.substring('data: '.length));
+              const jsonData = JSON.parse(message.substring("data: ".length));
               if (jsonData.text_chunk) {
-                if (accumulatedText === "" || modelPlaceholder.parts[0].text === "Streaming model reply...") {
+                if (
+                  accumulatedText === "" ||
+                  modelPlaceholder.parts[0].text === "Streaming model reply..."
+                ) {
                   accumulatedText = "";
                 }
                 accumulatedText += jsonData.text_chunk;
@@ -147,15 +191,20 @@ export default function Chat() {
             }
           }
         }
-      }    } catch (error) {
-      updateLastMessage(`Network or stream error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      updateLastMessage(
+        `Network or stream error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     } finally {
       setIsStreaming(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -185,10 +234,13 @@ export default function Chat() {
         <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
           {/* Chat Messages */}
           <div className="flex-1 flex flex-col">
-            <div 
+            <div
               ref={chatDisplayRef}
               className="flex-1 bg-base-100 rounded-lg p-4 overflow-y-auto space-y-3 shadow-sm"
-            >              {chatHistory.map((message, index) => (                <div
+            >
+              {" "}
+              {chatHistory.map((message, index) => (
+                <div
                   key={index}
                   className={`message p-3 rounded-lg max-w-[80%] ${
                     message.role === "user" && message.parts[0]?.text

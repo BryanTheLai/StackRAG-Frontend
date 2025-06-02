@@ -17,12 +17,12 @@ export default function App() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/login" component={Login} />
-
             <Route path="/private/dashboard">
               <PrivateRoute>
                 <Dashboard />
               </PrivateRoute>
-            </Route>            <Route path="/private/documents">
+            </Route>{" "}
+            <Route path="/private/documents">
               <PrivateRoute>
                 <Documents />
               </PrivateRoute>
@@ -32,7 +32,6 @@ export default function App() {
                 <Chat />
               </PrivateRoute>
             </Route>
-
             <Route>
               <ErrorPage
                 title="404: Page Not Found"

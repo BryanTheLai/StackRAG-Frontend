@@ -1,7 +1,17 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { supabase, signIn as supabaseSignIn, signOut as supabaseSignOut } from '@/supabase/client';
-import type { Session, User } from '@supabase/supabase-js';
-import { useLocation } from 'wouter';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  supabase,
+  signIn as supabaseSignIn,
+  signOut as supabaseSignOut,
+} from "@/supabase/client";
+import type { Session, User } from "@supabase/supabase-js";
+import { useLocation } from "wouter";
 
 interface AuthContextType {
   session: Session | null;
@@ -24,13 +34,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     setIsLoading(true);
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setIsLoading(false);
-    }).catch(() => {
-      setIsLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: currentSession } }) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setIsLoading(false);
+      });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
@@ -42,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Optional: Redirect to a specific page after sign-in
           // navigate('/private/profile/me', { replace: true }); // Example
         } else if (event === "SIGNED_OUT") {
-          navigate('/', { replace: true });
+          navigate("/", { replace: true });
         }
       }
     );
@@ -58,8 +71,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await supabaseSignIn(email, pass);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'An unknown error occurred during sign in.');
-      setIsLoading(false); 
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "An unknown error occurred during sign in."
+      );
+      setIsLoading(false);
     }
   };
 
@@ -69,15 +86,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await supabaseSignOut();
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'An unknown error occurred during sign out.');
-      setIsLoading(false); 
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "An unknown error occurred during sign out."
+      );
+      setIsLoading(false);
     }
   };
-  
+
   const clearAuthError = () => setAuthError(null);
 
   return (
-    <AuthContext.Provider value={{ session, user, isLoading, signIn, signOut, authError, clearAuthError }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        isLoading,
+        signIn,
+        signOut,
+        authError,
+        clearAuthError,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -86,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

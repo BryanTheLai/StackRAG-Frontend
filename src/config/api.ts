@@ -5,5 +5,3 @@ export const ENDPOINTS = {
   DOCUMENTS: `${API_BASE_URL}/documents`,
   CHAT: `${API_BASE_URL}/chat`,
 };
-
-

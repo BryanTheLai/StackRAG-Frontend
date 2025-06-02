@@ -5,12 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import { CheckCircle, X } from "lucide-react";
 
 export default function Dashboard() {
-  const {
-    session,
-    user,
-    isLoading: authLoading,
-    clearAuthError,
-  } = useAuth();
+  const { session, user, isLoading: authLoading, clearAuthError } = useAuth();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{

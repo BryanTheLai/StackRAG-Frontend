@@ -31,20 +31,20 @@ export async function fetchDocuments(
       "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content"
     )
     .order("upload_timestamp", { ascending: false });
-  
+
   // Filter by specific document ID or search term
   if (docId) {
     query.eq("id", docId);
   } else if (searchTerm) {
     query.ilike("filename", `%${searchTerm}%`);
   }
-  
+
   const { data, error } = await query;
   if (error) {
     throw new Error(`Error fetching documents: ${error.message}`);
   }
-  
-  return data as DocumentData[] || [];
+
+  return (data as DocumentData[]) || [];
 }
 
 // Delete a document by ID
@@ -53,7 +53,7 @@ export async function deleteDocument(docId: string): Promise<void> {
     .from("documents")
     .delete()
     .match({ id: docId });
-    
+
   if (error) {
     throw new Error(`Failed to delete document: ${error.message}`);
   }
@@ -62,12 +62,12 @@ export async function deleteDocument(docId: string): Promise<void> {
 // Utility function for status badge classes
 export function getStatusBadgeClass(status: string): string {
   switch (status) {
-    case 'completed':
-      return 'badge-success';
-    case 'processing':
-      return 'badge-warning';
+    case "completed":
+      return "badge-success";
+    case "processing":
+      return "badge-warning";
     default:
-      return 'badge-ghost';
+      return "badge-ghost";
   }
 }
 

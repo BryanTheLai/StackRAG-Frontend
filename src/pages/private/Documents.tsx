@@ -3,11 +3,11 @@ import { useSearch, Link } from "wouter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { 
-  type DocumentData, 
-  fetchDocuments, 
-  deleteDocument, 
-  getStatusBadgeClass 
+import {
+  type DocumentData,
+  fetchDocuments,
+  deleteDocument,
+  getStatusBadgeClass,
 } from "@/supabase/documents";
 import Sidebar from "@/components/Sidebar";
 
@@ -17,16 +17,17 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [previewContent, setPreviewContent] = useState<string>("");
-  
+
   // Delete functionality state
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string>("");
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string>("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [docIdToDelete, setDocIdToDelete] = useState<string | null>(null);
-  
+
   // URL parameter handling
-  const searchParams = useSearch();  const urlParams = new URLSearchParams(searchParams);
-  const docIdFromUrl = urlParams.get('id');
+  const searchParams = useSearch();
+  const urlParams = new URLSearchParams(searchParams);
+  const docIdFromUrl = urlParams.get("id");
 
   // Refs for modal control
   const deleteModalRef = useRef<HTMLDialogElement>(null);
@@ -48,7 +49,8 @@ export default function Documents() {
   // Control delete confirmation modal visibility
   useEffect(() => {
     if (isDeleteModalOpen) {
-      deleteModalRef.current?.showModal();    } else {
+      deleteModalRef.current?.showModal();
+    } else {
       deleteModalRef.current?.close();
     }
   }, [isDeleteModalOpen]);
@@ -56,7 +58,8 @@ export default function Documents() {
   // Utility functions
   const clearMessages = () => {
     setDeleteSuccessMessage("");
-    setDeleteErrorMessage("");  };
+    setDeleteErrorMessage("");
+  };
 
   // Event handlers
   const handleDeleteInitiate = (docId: string) => {
@@ -68,7 +71,7 @@ export default function Documents() {
     if (!docIdToDelete) return;
 
     clearMessages();
-    
+
     try {
       await deleteDocument(docIdToDelete);
       setDocs(docs.filter((doc) => doc.id !== docIdToDelete));
@@ -76,11 +79,14 @@ export default function Documents() {
       setTimeout(() => setDeleteSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Error deleting document:", error);
-      setDeleteErrorMessage(error instanceof Error ? error.message : "Failed to delete document");
+      setDeleteErrorMessage(
+        error instanceof Error ? error.message : "Failed to delete document"
+      );
       setTimeout(() => setDeleteErrorMessage(""), 5000);
     }
-    
-    setIsDeleteModalOpen(false);    setDocIdToDelete(null);
+
+    setIsDeleteModalOpen(false);
+    setDocIdToDelete(null);
   };
 
   const handleOpenPreview = (markdownContent: string) => {
@@ -94,8 +100,18 @@ export default function Documents() {
       {deleteSuccessMessage && (
         <div className="alert alert-success shadow-lg mb-4">
           <div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current flex-shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>{deleteSuccessMessage}</span>
           </div>
@@ -104,8 +120,18 @@ export default function Documents() {
       {deleteErrorMessage && (
         <div className="alert alert-error shadow-lg mb-4">
           <div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current flex-shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>{deleteErrorMessage}</span>
           </div>
@@ -114,11 +140,24 @@ export default function Documents() {
       {docIdFromUrl && (
         <div className="alert alert-info shadow-lg mb-4">
           <div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current flex-shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>Showing document with ID: {docIdFromUrl}</span>
-            <Link href="/private/documents" className="btn btn-sm btn-outline ml-4">
+            <Link
+              href="/private/documents"
+              className="btn btn-sm btn-outline ml-4"
+            >
               Show All Documents
             </Link>
           </div>
@@ -142,9 +181,15 @@ export default function Documents() {
     <thead className="bg-base-300">
       <tr>
         <th className="text-base-content border-r border-base-300">No.</th>
-        <th className="text-base-content border-r border-base-300">File Name</th>
-        <th className="text-base-content border-r border-base-300">Upload Time</th>
-        <th className="text-base-content border-r border-base-300 max-w-xs truncate">Doc Summary</th>
+        <th className="text-base-content border-r border-base-300">
+          File Name
+        </th>
+        <th className="text-base-content border-r border-base-300">
+          Upload Time
+        </th>
+        <th className="text-base-content border-r border-base-300 max-w-xs truncate">
+          Doc Summary
+        </th>
         <th className="text-base-content border-r border-base-300">Status</th>
         <th className="text-base-content">Actions</th>
       </tr>
@@ -159,14 +204,17 @@ export default function Documents() {
             <div className="text-warning">
               No document found with ID: {docIdFromUrl}
             </div>
-            <Link href="/private/documents" className="btn btn-sm btn-primary mt-2">
+            <Link
+              href="/private/documents"
+              className="btn btn-sm btn-primary mt-2"
+            >
               View All Documents
             </Link>
           </td>
         </tr>
       );
     }
-    
+
     if (docs.length === 0) {
       return (
         <tr>
@@ -176,7 +224,7 @@ export default function Documents() {
         </tr>
       );
     }
-    
+
     return null;
   };
 
@@ -194,7 +242,10 @@ export default function Documents() {
       <td className="text-sm whitespace-nowrap border-r border-base-300">
         {new Date(doc.upload_timestamp).toLocaleString()}
       </td>
-      <td className="text-sm max-w-xs truncate border-r border-base-300" title={doc.doc_summary}>
+      <td
+        className="text-sm max-w-xs truncate border-r border-base-300"
+        title={doc.doc_summary}
+      >
         {doc.doc_summary}
       </td>
       <td className="border-r border-base-300">
@@ -215,7 +266,7 @@ export default function Documents() {
 
   const renderPreviewPanel = () => {
     if (!showPreview) return null;
-    
+
     return (
       <div className="fixed top-0 right-0 h-full w-1/2 max-w-3xl bg-base-100 border-l shadow-lg z-50 flex flex-col">
         <div className="relative flex-shrink-0 p-2">
@@ -227,7 +278,10 @@ export default function Documents() {
           </button>
           <h3 className="font-bold text-lg p-2">Document Preview</h3>
         </div>
-        <div className="prose max-w-none overflow-y-auto p-4 flex-1" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
+        <div
+          className="prose max-w-none overflow-y-auto p-4 flex-1"
+          style={{ maxHeight: "calc(100vh - 5rem)" }}
+        >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {previewContent}
           </ReactMarkdown>
@@ -237,35 +291,34 @@ export default function Documents() {
   };
 
   const renderDeleteModal = () => (
-    <dialog 
-      ref={deleteModalRef} 
-      id="delete_confirm_modal" 
-      className="modal" 
+    <dialog
+      ref={deleteModalRef}
+      id="delete_confirm_modal"
+      className="modal"
       onClose={() => setIsDeleteModalOpen(false)}
     >
       <div className="modal-box">
         <h3 className="font-bold text-lg">Confirm Deletion</h3>
         <p className="py-4">
-          Are you sure you want to delete this document? This action cannot be undone.
+          Are you sure you want to delete this document? This action cannot be
+          undone.
         </p>
         <div className="modal-action">
-          <button 
-            className="btn btn-ghost" 
+          <button
+            className="btn btn-ghost"
             onClick={() => setIsDeleteModalOpen(false)}
           >
             Cancel
           </button>
-          <button 
-            className="btn btn-error" 
-            onClick={handleConfirmDelete}
-          >
+          <button className="btn btn-error" onClick={handleConfirmDelete}>
             Delete
           </button>
         </div>
       </div>
       <form method="dialog" className="modal-backdrop">
         <button onClick={() => setIsDeleteModalOpen(false)}>close</button>
-      </form>    </dialog>
+      </form>{" "}
+    </dialog>
   );
 
   // Main component render
@@ -275,12 +328,13 @@ export default function Documents() {
       <div className="flex flex-col flex-1 p-4 overflow-auto">
         {renderAlerts()}
         {renderSearchInput()}
-        
+
         <div className="overflow-x-auto shadow-md rounded-box">
           <table className="table table-zebra w-full border border-base-300">
             {renderTableHeader()}
             <tbody>
-              {renderEmptyState() || docs.map((doc, index) => renderDocumentRow(doc, index))}
+              {renderEmptyState() ||
+                docs.map((doc, index) => renderDocumentRow(doc, index))}
             </tbody>
           </table>
         </div>
