@@ -129,7 +129,7 @@ export default function Chat() {
     try {
       const payload = { history: newHistory };
 
-      const response = await fetch(ENDPOINTS.CHAT + "/stream_response", {
+      const response = await fetch(ENDPOINTS.CHAT + "/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
