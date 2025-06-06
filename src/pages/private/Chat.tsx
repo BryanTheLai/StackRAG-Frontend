@@ -87,21 +87,6 @@ export default function Chat() {
     });
   }, [chatHistory]);
 
-  const getMessageContent = (message: ChatMessage): string => {
-    const part = message.parts[0];
-    return part?.content ?? "(No content)";
-  };
-
-  const getMessageLabel = (message: ChatMessage): string => {
-    const part = message.parts[0];
-    if (message.kind === "request") {
-      if (part.part_kind === "system-prompt") return "System";
-      if (part.part_kind === "user-prompt") return "You";
-    }
-    if (message.kind === "response") return "Model";
-    return "";
-  };
-
   const updateLastMessage = (text: string) => {
     setChatHistory((prev) => {
       const updated = [...prev];
@@ -116,7 +101,6 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
 
-    // Add user request
     const userMessage: ChatMessage = {
       kind: "request",
       parts: [
@@ -127,38 +111,26 @@ export default function Chat() {
           part_kind: "user-prompt",
         },
       ],
-      instructions: null,
     };
 
-    const newHistory = [...chatHistory, userMessage];
+    const placeholder: ChatMessage = {
+      kind: "response",
+      parts: [{ content: "", part_kind: "text" }],
+    };
+
+    const newHistory = [...chatHistory, userMessage, placeholder];
     setChatHistory(newHistory);
     setInputMessage("");
     setIsStreaming(true);
 
-    // Add placeholder for model response
-    const modelPlaceholder: ChatMessage = {
-      kind: "response",
-      parts: [
-        {
-          content: "",
-          part_kind: "text",
-        },
-      ],
-      vendor_details: null,
-      instructions: null,
-    };
-    setChatHistory([...newHistory, modelPlaceholder]);
-
     try {
-      const payload = { history: newHistory };
-
       const response = await fetch(ENDPOINTS.CHAT + "/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ history: [...chatHistory, userMessage] }),
       });
 
       if (!response.ok || !response.body) {
@@ -168,57 +140,40 @@ export default function Chat() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = "";
-      let eventSourceBuffer = "";
+      let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+        buffer += decoder.decode(value, { stream: true });
 
-        eventSourceBuffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
 
-        let eolIndex;
-        while ((eolIndex = eventSourceBuffer.indexOf("\n\n")) >= 0) {
-          const message = eventSourceBuffer.substring(0, eolIndex);
-          eventSourceBuffer = eventSourceBuffer.substring(eolIndex + 2);
-          if (message.startsWith("event: stream_end")) {
-            if (accumulatedText === "") {
+          if (chunk.startsWith("event: stream_end")) {
+            if (!accumulatedText) {
               updateLastMessage("(Model stream ended without text)");
             }
             return;
-          } else if (message.startsWith("event: stream_error")) {
+          }
+
+          if (chunk.startsWith("data: ")) {
             try {
-              const errorData = JSON.parse(
-                message.substring(message.indexOf("data: ") + "data: ".length)
-              );
-              updateLastMessage(
-                `Stream Error: ${errorData.error || "Unknown error"}`
-              );
-            } catch {
-              updateLastMessage("Stream Error: Could not parse error details.");
-            }
-          } else if (message.startsWith("data: ")) {
-            try {
-              const jsonData = JSON.parse(message.substring("data: ".length));
-              if (jsonData.text_chunk) {
-                if (
-                  accumulatedText === "" ||
-                  modelPlaceholder.parts[0].content === "Streaming model reply..."
-                ) {
-                  accumulatedText = "";
-                }
-                accumulatedText += jsonData.text_chunk;
+              const { text_chunk } = JSON.parse(chunk.slice(6));
+              if (text_chunk) {
+                accumulatedText += text_chunk;
                 updateLastMessage(accumulatedText);
               }
-            } catch (e) {
-              console.error("Error parsing JSON data from stream:", e);
-            }
+            } catch {}
           }
         }
       }
     } catch (error) {
       updateLastMessage(
         `Network or stream error: ${
-          error instanceof Error ? error.message : String(error)
+          error instanceof Error ? error.message : error
         }`
       );
     } finally {
@@ -262,23 +217,30 @@ export default function Chat() {
               className="flex-1 bg-base-100 rounded-lg p-4 overflow-y-auto space-y-3 shadow-sm"
             >
               {" "}
-              {chatHistory.map((message, index) => (
-                <div
-                  key={index}
-                  className={`message p-3 rounded-lg max-w-[80%] ${
-                    message.parts[0].part_kind === "user-prompt"
-                      ? "bg-primary text-primary-content ml-auto"
-                      : "bg-base-200 text-base-content mr-auto"
-                  }`}
-                >
-                  <div className="text-xs opacity-70 mb-1">
-                    {getMessageLabel(message)}
+              {chatHistory.map((message, index) => {
+                const part = message.parts[0];
+                const label =
+                  message.kind === "request"
+                    ? part.part_kind === "system-prompt"
+                      ? "System"
+                      : "You"
+                    : "Model";
+                return (
+                  <div
+                    key={index}
+                    className={`message p-3 rounded-lg max-w-[80%] ${
+                      part.part_kind === "user-prompt"
+                        ? "bg-primary text-primary-content ml-auto"
+                        : "bg-base-200 text-base-content mr-auto"
+                    }`}
+                  >
+                    <div className="text-xs opacity-70 mb-1">{label}</div>
+                    <div className="whitespace-pre-wrap text-sm">
+                      {part?.content ?? "(No content)"}
+                    </div>
                   </div>
-                  <div className="whitespace-pre-wrap text-sm">
-                    {getMessageContent(message)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Input Area */}
