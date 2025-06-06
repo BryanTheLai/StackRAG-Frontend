@@ -101,3 +101,20 @@ export async function processDocument(
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+/**
+ * Verify which of the given filenames already exist on the server for this user.
+ * Throws on query error; returns array of existing filenames.
+ */
+export async function verifyFileNames(
+  userId: string,
+  filenames: string[]
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("documents")
+    .select("filename")
+    .eq("user_id", userId)
+    .in("filename", filenames);
+  if (error) throw error;
+  return (data || []).map((row) => row.filename);
+}

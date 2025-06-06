@@ -1,9 +1,8 @@
-import { useState, useEffect, type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
-import { processDocument } from "@/supabase/documents";
-import { supabase } from "@/supabase/client";
+import { processDocument, verifyFileNames } from "@/supabase/documents";
 
 interface SidebarProps {
   onFilesImported?: (files: File[]) => void;
@@ -25,7 +24,6 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
   const { user, session, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [results, setResults] = useState<FileResult[]>([]);
-  const [importedFileNames, setImportedFileNames] = useState<Set<string>>(new Set());
   const [location] = useLocation();
 
   const isProcessing = results.some((r) => r.status === "processing");
@@ -35,40 +33,24 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
     const fileList = input.files;
     if (!fileList || !session) return;
     const files = Array.from(fileList);
-    // Check Supabase storage for existing filenames
+
+    // verify filenames on server
     const filenames = files.map((f) => f.name);
     try {
-      const { data: existing, error: fetchError } = await supabase
-        .from('documents')
-        .select('filename')
-        .eq('user_id', user?.id)
-        .in('filename', filenames);
-      if (fetchError) throw fetchError;
-      if (existing && existing.length > 0) {
-        alert(
-          `File "${existing[0].filename}" already exists on the server. Please delete or rename before importing again.`
-        );
+      const existing = await verifyFileNames(user!.id, filenames);
+      if (existing.length) {
+        alert(`File "${existing[0]}" already exists. Please delete or rename before importing.`);
         input.value = "";
         return;
       }
     } catch (err) {
-      console.error('Error checking existing documents:', err);
-      alert('Error verifying existing documents. Please try again.');
+      console.error('Error checking documents:', err);
+      alert('Server check failed. Try again later.');
       input.value = "";
       return;
     }
 
-    // Prevent duplicate imports: check against previously imported file names
-    const duplicateFile = files.find((f) => importedFileNames.has(f.name));
-    if (duplicateFile) {
-      alert(
-        `File "${duplicateFile.name}" has already been imported. Please delete or rename the file before importing again.`
-      );
-      input.value = "";
-      return;
-    }
-
-    // initialize all as processing
+    // start processing
     setResults(files.map((f) => ({ file: f, status: "processing" })));
 
     const settled = await Promise.allSettled(
@@ -82,17 +64,8 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
     );
 
     setResults(newResults);
-    // update importedFileNames with new successful imports
-    setImportedFileNames((prev) => {
-      const newSet = new Set(prev);
-      newResults.forEach((r) => {
-        if (r.status === "success") newSet.add(r.file.name);
-      });
-      return newSet;
-    });
     input.value = "";
 
-    // notify parent to refresh document list
     onFilesImported?.(files);
   };
 
