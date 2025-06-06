@@ -28,54 +28,7 @@ interface ChatMessage {
 
 export default function Chat() {
   const { user, session, isLoading: authLoading } = useAuth();
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(
-    [
-      // {
-      //   parts: [
-      //     {
-      //       content: "Be a helpful assistant.",
-      //       timestamp: "2025-06-06T09:29:30.374958Z",
-      //       dynamic_ref: null,
-      //       part_kind: "system-prompt",
-      //     },
-      //     {
-      //       content: "Tell me a joke.",
-      //       timestamp: "2025-06-06T09:29:30.374958Z",
-      //       part_kind: "user-prompt",
-      //     },
-      //   ],
-      //   instructions: null,
-      //   kind: "request",
-      // },
-      // {
-      //   parts: [
-      //     {
-      //       content:
-      //         "Why did the scarecrow win an award? \n\nBecause he was outstanding in his field!",
-      //       part_kind: "text",
-      //     },
-      //   ],
-      //   usage: {
-      //     requests: 1,
-      //     request_tokens: 21,
-      //     response_tokens: 18,
-      //     total_tokens: 39,
-      //     details: {
-      //       accepted_prediction_tokens: 0,
-      //       audio_tokens: 0,
-      //       reasoning_tokens: 0,
-      //       rejected_prediction_tokens: 0,
-      //       cached_tokens: 0,
-      //     },
-      //   },
-      //   model_name: "gpt-4o-mini-2024-07-18",
-      //   timestamp: "2025-06-06T09:29:31Z",
-      //   kind: "response",
-      //   vendor_details: null,
-      //   vendor_id: "chatcmpl-BfNgBLF8hwbIZPDjpaxpwYuKJAAGb",
-      // },
-    ]
-  );
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const chatDisplayRef = useRef<HTMLDivElement>(null);
@@ -100,26 +53,21 @@ export default function Chat() {
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
-
+    const content = inputMessage.trim();
     const userMessage: ChatMessage = {
       kind: "request",
       parts: [
         {
-          content: inputMessage.trim(),
+          content,
           timestamp: new Date().toISOString(),
           dynamic_ref: null,
           part_kind: "user-prompt",
         },
       ],
     };
-
-    const placeholder: ChatMessage = {
-      kind: "response",
-      parts: [{ content: "", part_kind: "text" }],
-    };
-
-    const newHistory = [...chatHistory, userMessage, placeholder];
-    setChatHistory(newHistory);
+    const placeholder: ChatMessage = { kind: "response", parts: [{ content: "", part_kind: "text" }] };
+    const historyForBody = [...chatHistory, userMessage];
+    setChatHistory((prev) => [...prev, userMessage, placeholder]);
     setInputMessage("");
     setIsStreaming(true);
 
@@ -130,7 +78,7 @@ export default function Chat() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ history: [...chatHistory, userMessage] }),
+        body: JSON.stringify({ history: historyForBody }),
       });
 
       if (!response.ok || !response.body) {
@@ -181,7 +129,7 @@ export default function Chat() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -216,7 +164,6 @@ export default function Chat() {
               ref={chatDisplayRef}
               className="flex-1 bg-base-100 rounded-lg p-4 overflow-y-auto space-y-3 shadow-sm"
             >
-              {" "}
               {chatHistory.map((message, index) => {
                 const part = message.parts[0];
                 const label =
@@ -248,7 +195,7 @@ export default function Chat() {
               <textarea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
                 className="textarea textarea-bordered flex-1 resize-none"
                 rows={2}
