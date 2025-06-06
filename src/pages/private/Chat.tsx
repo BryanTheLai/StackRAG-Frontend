@@ -5,55 +5,77 @@ import { Send } from "lucide-react";
 import { ENDPOINTS } from "@/config/api";
 
 interface ChatMessage {
-  role: "user" | "model";
   parts: Array<{
-    text?: string;
-    function_call?: { name: string; args: Record<string, any> };
-    function_response?: { name: string; response: Record<string, any> };
+    content: string;
+    timestamp?: string;
+    dynamic_ref?: any | null;
+    part_kind: "system-prompt" | "user-prompt" | "text";
   }>;
+  instructions?: any | null;
+  kind: "request" | "response";
+  usage?: {
+    requests: number;
+    request_tokens: number;
+    response_tokens: number;
+    total_tokens: number;
+    details: Record<string, number>;
+  };
+  model_name?: string;
+  timestamp?: string;
+  vendor_details?: any | null;
+  vendor_id?: string;
 }
 
 export default function Chat() {
   const { user, session, isLoading: authLoading } = useAuth();
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    // {
-    //   role: "user",
-    //   parts: [
-    //     {
-    //       text: "What's the Gross Carrying Amount for Total intangible assets for tesla in 2021? then divide the value by 0.04215215",
-    //     },
-    //   ],
-    // },
-    // {
-    //   role: "model",
-    //   parts: [
-    //     {
-    //       function_call: {
-    //         name: "retrieve_financial_chunks",
-    //         args: {
-    //           doc_year_start: 2021,
-    //           company_name: "Tesla",
-    //           doc_year_end: 2021,
-    //           query_text: "Gross Carrying Amount for Total intangible assets",
-    //         },
-    //       },
-    //     },
-    //   ],
-    // },
-    // {
-    //   role: "user",
-    //   parts: [
-    //     {
-    //       function_response: {
-    //         name: "retrieve_financial_chunks",
-    //         response: {
-    //           output: "Tesla Gross Carrying Amount for Total intangible assets in 2021 is $465 million, an increase of....",
-    //         },
-    //       },
-    //     },
-    //   ],
-    // },
-  ]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(
+    [
+      // {
+      //   parts: [
+      //     {
+      //       content: "Be a helpful assistant.",
+      //       timestamp: "2025-06-06T09:29:30.374958Z",
+      //       dynamic_ref: null,
+      //       part_kind: "system-prompt",
+      //     },
+      //     {
+      //       content: "Tell me a joke.",
+      //       timestamp: "2025-06-06T09:29:30.374958Z",
+      //       part_kind: "user-prompt",
+      //     },
+      //   ],
+      //   instructions: null,
+      //   kind: "request",
+      // },
+      // {
+      //   parts: [
+      //     {
+      //       content:
+      //         "Why did the scarecrow win an award? \n\nBecause he was outstanding in his field!",
+      //       part_kind: "text",
+      //     },
+      //   ],
+      //   usage: {
+      //     requests: 1,
+      //     request_tokens: 21,
+      //     response_tokens: 18,
+      //     total_tokens: 39,
+      //     details: {
+      //       accepted_prediction_tokens: 0,
+      //       audio_tokens: 0,
+      //       reasoning_tokens: 0,
+      //       rejected_prediction_tokens: 0,
+      //       cached_tokens: 0,
+      //     },
+      //   },
+      //   model_name: "gpt-4o-mini-2024-07-18",
+      //   timestamp: "2025-06-06T09:29:31Z",
+      //   kind: "response",
+      //   vendor_details: null,
+      //   vendor_id: "chatcmpl-BfNgBLF8hwbIZPDjpaxpwYuKJAAGb",
+      // },
+    ]
+  );
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const chatDisplayRef = useRef<HTMLDivElement>(null);
@@ -67,39 +89,25 @@ export default function Chat() {
 
   const getMessageContent = (message: ChatMessage): string => {
     const part = message.parts[0];
-    if (!part) return "(No content)";
-
-    if (part.text) return part.text;
-    if (part.function_call)
-      return `Function Call: ${part.function_call.name}\nArgs: ${JSON.stringify(
-        part.function_call.args,
-        null,
-        2
-      )}`;
-    if (part.function_response)
-      return `Function Response: ${
-        part.function_response.name
-      }\nOutput: ${JSON.stringify(part.function_response.response, null, 2)}`;
-
-    return "(No content)";
+    return part?.content ?? "(No content)";
   };
 
   const getMessageLabel = (message: ChatMessage): string => {
     const part = message.parts[0];
-    let label = message.role === "user" ? "You" : "Model";
-
-    if (part?.function_call) label += " (function_call)";
-    if (part?.function_response) label += " (tool_output)";
-
-    return label;
+    if (message.kind === "request") {
+      if (part.part_kind === "system-prompt") return "System";
+      if (part.part_kind === "user-prompt") return "You";
+    }
+    if (message.kind === "response") return "Model";
+    return "";
   };
 
   const updateLastMessage = (text: string) => {
     setChatHistory((prev) => {
       const updated = [...prev];
       const lastMessage = updated[updated.length - 1];
-      if (lastMessage?.role === "model") {
-        lastMessage.parts[0].text = text;
+      if (lastMessage?.kind === "response") {
+        lastMessage.parts[0].content = text;
       }
       return updated;
     });
@@ -108,10 +116,18 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
 
-    // Add user message
+    // Add user request
     const userMessage: ChatMessage = {
-      role: "user",
-      parts: [{ text: inputMessage.trim() }],
+      kind: "request",
+      parts: [
+        {
+          content: inputMessage.trim(),
+          timestamp: new Date().toISOString(),
+          dynamic_ref: null,
+          part_kind: "user-prompt",
+        },
+      ],
+      instructions: null,
     };
 
     const newHistory = [...chatHistory, userMessage];
@@ -121,8 +137,15 @@ export default function Chat() {
 
     // Add placeholder for model response
     const modelPlaceholder: ChatMessage = {
-      role: "model",
-      parts: [{ text: "Streaming model reply..." }],
+      kind: "response",
+      parts: [
+        {
+          content: "",
+          part_kind: "text",
+        },
+      ],
+      vendor_details: null,
+      instructions: null,
     };
     setChatHistory([...newHistory, modelPlaceholder]);
 
@@ -179,7 +202,7 @@ export default function Chat() {
               if (jsonData.text_chunk) {
                 if (
                   accumulatedText === "" ||
-                  modelPlaceholder.parts[0].text === "Streaming model reply..."
+                  modelPlaceholder.parts[0].content === "Streaming model reply..."
                 ) {
                   accumulatedText = "";
                 }
@@ -243,9 +266,9 @@ export default function Chat() {
                 <div
                   key={index}
                   className={`message p-3 rounded-lg max-w-[80%] ${
-                    message.role === "user" && message.parts[0]?.text
+                    message.parts[0].part_kind === "user-prompt"
                       ? "bg-primary text-primary-content ml-auto"
-                      : "bg-base-200"
+                      : "bg-base-200 text-base-content mr-auto"
                   }`}
                 >
                   <div className="text-xs opacity-70 mb-1">
