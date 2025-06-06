@@ -32,10 +32,10 @@ export default function App() {
                 <Chat />
               </PrivateRoute>
             </Route>
-            <Route>
+            <Route path="*">
               <ErrorPage
                 title="404: Page Not Found"
-                message="Sorry, the page you are looking for does not exist@"
+                message="Sorry, the page you are looking for does not exist"
               />
             </Route>
           </Switch>
