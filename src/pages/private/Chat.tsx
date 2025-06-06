@@ -16,43 +16,43 @@ interface ChatMessage {
 export default function Chat() {
   const { user, session, isLoading: authLoading } = useAuth();
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    {
-      role: "user",
-      parts: [
-        {
-          text: "What's the Gross Carrying Amount for Total intangible assets for tesla in 2021? then divide the value by 0.04215215",
-        },
-      ],
-    },
-    {
-      role: "model",
-      parts: [
-        {
-          function_call: {
-            name: "retrieve_financial_chunks",
-            args: {
-              doc_year_start: 2021,
-              company_name: "Tesla",
-              doc_year_end: 2021,
-              query_text: "Gross Carrying Amount for Total intangible assets",
-            },
-          },
-        },
-      ],
-    },
-    {
-      role: "user",
-      parts: [
-        {
-          function_response: {
-            name: "retrieve_financial_chunks",
-            response: {
-              output: "Tesla Gross Carrying Amount for Total intangible assets in 2021 is $465 million, an increase of....",
-            },
-          },
-        },
-      ],
-    },
+    // {
+    //   role: "user",
+    //   parts: [
+    //     {
+    //       text: "What's the Gross Carrying Amount for Total intangible assets for tesla in 2021? then divide the value by 0.04215215",
+    //     },
+    //   ],
+    // },
+    // {
+    //   role: "model",
+    //   parts: [
+    //     {
+    //       function_call: {
+    //         name: "retrieve_financial_chunks",
+    //         args: {
+    //           doc_year_start: 2021,
+    //           company_name: "Tesla",
+    //           doc_year_end: 2021,
+    //           query_text: "Gross Carrying Amount for Total intangible assets",
+    //         },
+    //       },
+    //     },
+    //   ],
+    // },
+    // {
+    //   role: "user",
+    //   parts: [
+    //     {
+    //       function_response: {
+    //         name: "retrieve_financial_chunks",
+    //         response: {
+    //           output: "Tesla Gross Carrying Amount for Total intangible assets in 2021 is $465 million, an increase of....",
+    //         },
+    //       },
+    //     },
+    //   ],
+    // },
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);

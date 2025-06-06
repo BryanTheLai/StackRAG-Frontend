@@ -32,6 +32,14 @@ export default function Documents() {
   // Refs for modal control
   const deleteModalRef = useRef<HTMLDialogElement>(null);
 
+  // New state for refresh flag
+  const [refreshFlag, setRefreshFlag] = useState<number>(0);
+
+  // Callback to refresh documents after import
+  const handleFilesImported = (_files: File[]) => {
+    setRefreshFlag((f) => f + 1);
+  };
+
   // Fetch documents from Supabase
   useEffect(() => {
     const loadDocuments = async () => {
@@ -44,7 +52,7 @@ export default function Documents() {
     };
 
     loadDocuments();
-  }, [searchTerm, docIdFromUrl]);
+  }, [searchTerm, docIdFromUrl, refreshFlag]);
 
   // Control delete confirmation modal visibility
   useEffect(() => {
@@ -324,7 +332,7 @@ export default function Documents() {
   // Main component render
   return (
     <div className="flex relative h-screen bg-base-200">
-      <Sidebar />
+      <Sidebar onFilesImported={handleFilesImported} />
       <div className="flex flex-col flex-1 p-4 overflow-auto">
         {renderAlerts()}
         {renderSearchInput()}

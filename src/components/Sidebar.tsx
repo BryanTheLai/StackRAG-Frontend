@@ -1,10 +1,17 @@
 import { useState, type ChangeEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "wouter";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { processDocument } from "@/supabase/documents";
 
 interface SidebarProps {
   onFilesImported?: (files: File[]) => void;
+}
+type FileStatus = "processing" | "success" | "error";
+interface FileResult {
+  file: File;
+  status: FileStatus;
+  error?: string;
 }
 
 const links = [
@@ -14,31 +21,68 @@ const links = [
 ];
 
 export default function Sidebar({ onFilesImported }: SidebarProps) {
-  const { user, signOut } = useAuth();
-  const [files, setFiles] = useState<File[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const { user, session, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [results, setResults] = useState<FileResult[]>([]);
+  const [importedFileNames, setImportedFileNames] = useState<Set<string>>(new Set());
   const [location] = useLocation();
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const fileArray = Array.from(e.target.files);
-      setFiles(fileArray);
-      setShowModal(true);
-      onFilesImported?.(fileArray);
+  const isProcessing = results.some((r) => r.status === "processing");
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const fileList = input.files;
+    if (!fileList || !session) return;
+    const files = Array.from(fileList);
+
+    // Prevent duplicate imports: check against previously imported file names
+    const duplicateFile = files.find((f) => importedFileNames.has(f.name));
+    if (duplicateFile) {
+      alert(
+        `File "${duplicateFile.name}" has already been imported. Please delete or rename the file before importing again.`
+      );
+      input.value = "";
+      return;
     }
+
+    // initialize all as processing
+    setResults(files.map((f) => ({ file: f, status: "processing" })));
+
+    const settled = await Promise.allSettled(
+      files.map((f) => processDocument(f, session.access_token))
+    );
+
+    const newResults: FileResult[] = settled.map<FileResult>((r, i) =>
+      r.status === "fulfilled"
+        ? { file: files[i], status: "success" }
+        : { file: files[i], status: "error", error: (r.reason as Error).message }
+    );
+
+    setResults(newResults);
+    // update importedFileNames with new successful imports
+    setImportedFileNames((prev) => {
+      const newSet = new Set(prev);
+      newResults.forEach((r) => {
+        if (r.status === "success") newSet.add(r.file.name);
+      });
+      return newSet;
+    });
+    input.value = "";
+
+    // notify parent to refresh document list
+    onFilesImported?.(files);
   };
 
   return (
     <>
       <div
-        className={`h-screen bg-base-100 flex flex-col justify-between border-r border-base-300 transition-width duration-100 ${
+        className={`h-screen bg-base-100 flex flex-col justify-between border-r border-base-300 transition-width duration-200 ${
           collapsed ? "w-16" : "w-50"
         }`}
       >
         <div className="p-2">
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setCollapsed((v) => !v)}
             className="btn btn-square btn-ghost"
             aria-label="Toggle sidebar"
           >
@@ -51,44 +95,81 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
         </div>
         {!collapsed && (
           <>
-            <div>
-              <nav className="flex flex-col p-4 space-y-2">
-                {links.map(({ link, label }) => (
-                  <Link
-                    key={label}
-                    href={link}
-                    className={`px-3 py-2 rounded transition-colors text-base font-medium ${
-                      location === link
-                        ? "bg-primary text-primary-content"
-                        : "text-base-content hover:bg-base-200"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </nav>
-              <div className="p-4">
-                <input
-                  id="file-upload"
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <label htmlFor="file-upload" className="btn btn-primary w-full">
-                  Import Files
-                </label>
-              </div>
+            <nav className="flex flex-col p-4 space-y-2">
+              {links.map(({ link, label }) => (
+                <Link
+                  key={label}
+                  href={link}
+                  className={`px-3 py-1 rounded font-medium transition ${
+                    location === link
+                      ? "bg-primary text-primary-content"
+                      : "text-base-content hover:bg-base-200"
+                  }`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="p-4">
+              {/* File import button always visible; disable and show spinner when processing */}
+              <input
+                id="file-upload"
+                type="file"
+                multiple
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={isProcessing}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`btn btn-primary w-full ${
+                  isProcessing ? "cursor-not-allowed opacity-70" : ""
+                }`}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2 inline-block" />
+                    Processing...
+                  </>
+                ) : (
+                  "Import PDF"
+                )}
+              </label>
+
+              {results.length > 0 && (
+                <ul className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                  {results.map(({ file, status, error }, i) => (
+                    <li key={i} className="flex items-center min-w-0">
+                      <span
+                        title={file.name}
+                        className="flex-1 text-sm truncate mr-2"
+                      >
+                        {file.name}
+                      </span>
+                      <div className="w-5 flex justify-center">
+                        {status === "success" && (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        )}
+                        {status === "error" && (
+                          <div title={error} className="w-5 flex justify-center">
+                            <AlertTriangle className="h-5 w-5 text-red-500" />
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="p-4">
-              <p className="mb-2 text-sm text-neutral-content">Signed in as</p>
-              <p className="font-medium mb-4 text-base-content">
-                {user?.email}
-              </p>
+              <p className="text-sm text-neutral-content mb-1">Signed in as</p>
+              <p className="font-medium mb-3">{user?.email}</p>
               <button
-                className="btn btn-secondary w-full"
                 onClick={() => void signOut()}
+                className="btn btn-secondary w-full"
               >
                 Logout
               </button>
@@ -96,35 +177,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
           </>
         )}
       </div>
-
-      {showModal && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg text-base-content">
-              File Upload Info
-            </h3>
-            <ul className="mt-4 space-y-2 max-h-60 overflow-y-auto">
-              {files.map((file, idx) => (
-                <li key={idx} className="text-sm text-base-content">
-                  <p className="font-medium">{file.name}</p>
-                  <p className="text-xs text-neutral-content">
-                    Size: {file.size} bytes
-                  </p>
-                  <p className="text-xs text-neutral-content">
-                    Last Modified:{" "}
-                    {new Date(file.lastModified).toLocaleString()}
-                  </p>
-                </li>
-              ))}
-            </ul>
-            <div className="modal-action">
-              <button className="btn" onClick={() => setShowModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
+

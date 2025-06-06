@@ -80,3 +80,24 @@ export async function fetchDocumentsAPI(accessToken: string): Promise<Doc[]> {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+// Process a PDF file by sending it as pdf_file_buffer with access token
+export async function processDocument(
+  file: File,
+  accessToken: string
+): Promise<any> {
+  const formData = new FormData();
+  // Use 'file' as the field name to match FastAPI's UploadFile parameter
+  formData.append("file", file);
+
+  const res = await fetch(`${ENDPOINTS.DOCUMENTS}/process`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
