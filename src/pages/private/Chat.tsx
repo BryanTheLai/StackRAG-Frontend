@@ -4,90 +4,209 @@ import Sidebar from "@/components/Sidebar";
 import { Send, MessageSquare, ArrowLeft } from "lucide-react";
 import { ENDPOINTS } from "@/config/api";
 import { useRoute, Link } from "wouter";
-import type { ChatMessage } from "@/supabase/chatService"; // Import type
+import type { ChatMessage } from "@/supabase/chatService";
 import {
   fetchChatSessionById,
   updateChatSessionHistory,
 } from "@/supabase/chatService";
 
 export default function Chat() {
+  // Authentication and routing
   const { user, session, isLoading: authLoading } = useAuth();
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isLoadingChat, setIsLoadingChat] = useState(true); 
-  const [chatTitle, setChatTitle] = useState<string | null>("Chat");
-  const [error, setError] = useState<string | null>(null);
-  const chatDisplayRef = useRef<HTMLDivElement>(null);
-
-  // Get chat ID from URL
   const [, params] = useRoute("/private/chat/:id");
   const chatId = params?.id;
 
-  // Fetch existing chat session or initialize for a new one
+  // Chat state
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
+  const [chatTitle, setChatTitle] = useState<string | null>("Chat");
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI refs
+  const chatDisplayRef = useRef<HTMLDivElement>(null);
+  // Load chat session on mount or when chatId/user changes
   useEffect(() => {
-    if (!user || !chatId) {
-      setIsLoadingChat(false);
-      // If no chatId, it could be a new chat started from a different flow (e.g. direct navigation)
-      // For now, we assume ChatHistoryPage handles creation and navigation with an ID.
-      // If a user lands here directly without an ID, they might see an empty state or be redirected.
-      setChatTitle("New Chat"); // Default title if no ID
-      setChatHistory([]); // Start with empty history
-      return;
-    }
+    const loadChatSession = async () => {
+      if (!user || !chatId) {
+        setIsLoadingChat(false);
+        setChatTitle("New Chat");
+        setChatHistory([]);
+        return;
+      }
 
-    setIsLoadingChat(true);
-    setError(null);
+      setIsLoadingChat(true);
+      setError(null);
 
-    fetchChatSessionById(chatId)
-      .then((sessionData) => {
+      try {
+        const sessionData = await fetchChatSessionById(chatId);
         if (sessionData) {
           setChatHistory(sessionData.history || []);
           setChatTitle(sessionData.title || "Chat");
         } else {
-          // Handle case where session is not found or user doesn't have access
-          setError(`Chat session not found or access denied.`);
+          setError("Chat session not found or access denied.");
           setChatHistory([]);
           setChatTitle("Error");
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Failed to load chat session:", err);
         setError(err instanceof Error ? err.message : "Failed to load chat.");
         setChatTitle("Error");
-      })
-      .finally(() => setIsLoadingChat(false));
-  }, [chatId, user]);
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
 
+    loadChatSession();
+  }, [chatId, user]);
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    chatDisplayRef.current?.scrollTo({
-      top: chatDisplayRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (chatDisplayRef.current) {
+      chatDisplayRef.current.scrollTo({
+        top: chatDisplayRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [chatHistory]);
 
+  // Create user message object
+  const createUserMessage = (content: string): ChatMessage => ({
+    kind: "request",
+    parts: [{
+      content,
+      timestamp: new Date().toISOString(),
+      dynamic_ref: null,
+      part_kind: "user-prompt",
+    }],
+  });
+
+  // Create placeholder response message
+  const createPlaceholderMessage = (): ChatMessage => ({
+    kind: "response",
+    parts: [{ content: "", part_kind: "text" }],
+  });
+
+  // Update streaming response in chat history
+  const updateStreamingResponse = (textChunk: string, accumulatedText: string) => {
+    setChatHistory((prev) => {
+      const updated = [...prev];
+      const lastMessage = updated[updated.length - 1];
+      if (lastMessage?.kind === "response") {
+        lastMessage.parts[0].content = accumulatedText + textChunk;
+      }
+      return updated;
+    });
+  };
+
+  // Handle streaming chat response
+  const handleStreamingResponse = async (response: Response, currentHistory: ChatMessage[]) => {
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let accumulatedText = "";
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+
+          if (chunk.startsWith("event: stream_end")) {
+            const finalMessage: ChatMessage = {
+              kind: "response",
+              parts: [{ 
+                content: accumulatedText, 
+                part_kind: "text", 
+                timestamp: new Date().toISOString() 
+              }],
+            };
+            const finalHistory = [...currentHistory, finalMessage];
+            setChatHistory(finalHistory);
+            
+            if (chatId) {
+              await updateChatSessionHistory(chatId, finalHistory);
+            }
+            return;
+          }
+
+          if (chunk.startsWith("data: ")) {
+            try {
+              const jsonData = JSON.parse(chunk.slice(6));
+              if (jsonData.text_chunk) {
+                accumulatedText += jsonData.text_chunk;
+                updateStreamingResponse(jsonData.text_chunk, accumulatedText);
+              }
+            } catch (e) {
+              console.warn("Failed to parse stream data chunk:", chunk, e);
+            }
+          }
+        }
+      }
+
+      // Handle abrupt stream end
+      if (accumulatedText) {
+        const finalMessage: ChatMessage = {
+          kind: "response",
+          parts: [{ 
+            content: accumulatedText, 
+            part_kind: "text", 
+            timestamp: new Date().toISOString() 
+          }],
+        };
+        const finalHistory = [...currentHistory, finalMessage];
+        setChatHistory(finalHistory);
+        
+        if (chatId) {
+          await updateChatSessionHistory(chatId, finalHistory);
+        }
+      }
+    } catch (error) {
+      console.error("Stream reading error:", error);
+      throw error;
+    }
+  };
+
+  // Handle errors in chat
+  const handleChatError = (error: unknown) => {
+    console.error("Streaming error:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during streaming.";
+    
+    setChatHistory((prev) => {
+      const updated = [...prev];
+      // Remove placeholder if it exists
+      if (updated.length > 0 && updated[updated.length - 1].parts[0].content === "") {
+        updated.pop();
+      }
+      return [
+        ...updated,
+        {
+          kind: "response",
+          parts: [{ content: `Error: ${errorMessage}`, part_kind: "text" }],
+        },
+      ];
+    });
+    setError(errorMessage);
+  };
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
-    const content = inputMessage.trim();
-    const userMessage: ChatMessage = {
-      kind: "request",
-      parts: [
-        {
-          content,
-          timestamp: new Date().toISOString(),
-          dynamic_ref: null,
-          part_kind: "user-prompt",
-        },
-      ],
-    };
-    const placeholder: ChatMessage = { kind: "response", parts: [{ content: "", part_kind: "text" }] };
     
+    const content = inputMessage.trim();
+    const userMessage = createUserMessage(content);
+    const placeholder = createPlaceholderMessage();
     const currentHistory = [...chatHistory, userMessage];
+    
+    // Update UI immediately
     setChatHistory((prev) => [...prev, userMessage, placeholder]);
     setInputMessage("");
     setIsStreaming(true);
-    setError(null); // Clear previous errors
+    setError(null);
 
     try {
       const response = await fetch(ENDPOINTS.CHAT + "/stream", {
@@ -96,7 +215,7 @@ export default function Chat() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ history: currentHistory }), // Send current history
+        body: JSON.stringify({ history: currentHistory }),
       });
 
       if (!response.ok || !response.body) {
@@ -104,99 +223,13 @@ export default function Chat() {
         throw new Error(`HTTP ${response.status}: ${errorText || "Failed to stream"}`);
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-      let finalHistoryUpdate: ChatMessage[] = []; // Renamed to avoid conflict
-
-      // Update the placeholder with the streaming response
-      const updateStreamingResponse = (textChunk: string) => {
-        accumulatedText += textChunk;
-        setChatHistory((prev) => {
-          const updated = [...prev];
-          const lastMessage = updated[updated.length - 1];
-          if (lastMessage?.kind === "response") {
-            lastMessage.parts[0].content = accumulatedText;
-          }
-          return updated;
-        });
-      };
-
-      let buffer = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx;
-        while ((idx = buffer.indexOf("\n\n")) >= 0) {
-          const chunk = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 2);
-
-          if (chunk.startsWith("event: stream_end")) {
-            // Stream ended, the accumulatedText is the final response part
-            const finalResponseMessage: ChatMessage = {
-              kind: "response",
-              parts: [{ content: accumulatedText, part_kind: "text", timestamp: new Date().toISOString() }],
-              // Potentially add model_name, usage etc. if provided by stream_end event data
-            };
-            finalHistoryUpdate = [...currentHistory, finalResponseMessage];
-            setChatHistory(finalHistoryUpdate); // Set the final state with the complete response
-            if (chatId) {
-              await updateChatSessionHistory(chatId, finalHistoryUpdate);
-            }
-            setIsStreaming(false);
-            return; // Exit the loop and function
-          }
-
-          if (chunk.startsWith("data: ")) {
-            try {
-              const jsonData = JSON.parse(chunk.slice(6)); // Remove "data: " prefix
-              if (jsonData.text_chunk) {
-                updateStreamingResponse(jsonData.text_chunk);
-              }
-              // Handle other potential data fields from the stream if necessary
-            } catch (e) {
-              console.warn("Failed to parse stream data chunk:", chunk, e);
-            }
-          }
-        }
-      }
-      // If loop finishes without stream_end, it might be an abrupt close
-      // We ensure the last accumulated text is set and history updated
-      const finalResponseMessageAbrupt: ChatMessage = {
-        kind: "response",
-        parts: [{ content: accumulatedText, part_kind: "text", timestamp: new Date().toISOString() }],
-      };
-      finalHistoryUpdate = [...currentHistory, finalResponseMessageAbrupt];
-      setChatHistory(finalHistoryUpdate);
-      if (chatId) {
-        await updateChatSessionHistory(chatId, finalHistoryUpdate);
-      }
-
+      await handleStreamingResponse(response, currentHistory);
     } catch (error) {
-      console.error("Streaming error:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during streaming.";
-      setChatHistory((prev) => {
-        const updated = [...prev];
-        // Remove placeholder if it exists, or update the last response part with error
-        if (updated.length > 0 && updated[updated.length - 1].parts[0].content === "") {
-          updated.pop(); // Remove placeholder
-        }
-        return [
-          ...updated,
-          {
-            kind: "response",
-            parts: [{ content: `Error: ${errorMessage}`, part_kind: "text" }],
-          },
-        ];
-      });
-      setError(errorMessage);
+      handleChatError(error);
     } finally {
       setIsStreaming(false);
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -204,22 +237,119 @@ export default function Chat() {
     }
   };
 
-  if (authLoading) {
+  // Render loading state for authentication
+  const renderAuthLoading = () => (
+    <div className="flex h-screen bg-base-200">
+      <Sidebar />
+      <div className="flex-1 flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    </div>
+  );
+
+  // Render chat loading state
+  const renderChatLoading = () => (
+    <div className="flex justify-center items-center h-full">
+      <span className="loading loading-dots loading-lg"></span>
+    </div>
+  );
+
+  // Render error state
+  const renderError = () => (
+    <div className="text-center text-red-500 p-4">
+      <p>Error loading chat: {error}</p>
+      <Link href="/private/chathistory" className="link link-primary mt-2">
+        Back to Chat History
+      </Link>
+    </div>
+  );
+
+  // Render empty state for new chat
+  const renderNewChatEmpty = () => (
+    <div className="text-center text-gray-500 pt-10">
+      <MessageSquare size={48} className="mx-auto mb-4" />
+      <p className="text-xl">Start a new conversation</p>
+      <p className="text-sm">Type your message below to begin.</p>
+    </div>
+  );
+
+  // Render empty state for existing chat
+  const renderExistingChatEmpty = () => (
+    <div className="text-center text-gray-500 pt-10">
+      <MessageSquare size={48} className="mx-auto mb-4" />
+      <p className="text-xl">This chat is empty.</p>
+      <p className="text-sm">Send a message to start the conversation.</p>
+    </div>
+  );
+
+  // Render a single chat message
+  const renderMessage = (msg: ChatMessage, index: number) => (
+    <div
+      key={index}
+      className={`chat ${msg.kind === "request" ? "chat-end" : "chat-start"}`}
+    >
+      <div className={`chat-bubble prose prose-sm max-w-prose-sm 
+                      ${msg.kind === "request" ? "chat-bubble-primary" 
+                      : msg.parts[0].content.startsWith("Error:") ? "chat-bubble-error" 
+                      : "chat-bubble-neutral"}`}
+      >
+        {msg.parts.map((part, partIndex) => (
+          <p key={partIndex}>{part.content}</p>
+        ))}
+      </div>
+      {msg.timestamp && (
+        <div className="chat-footer opacity-50 text-xs">
+          {new Date(msg.timestamp).toLocaleTimeString()}
+        </div>
+      )}
+    </div>
+  );
+
+  // Render chat display area content
+  const renderChatContent = () => {
+    if (isLoadingChat) return renderChatLoading();
+    if (error) return renderError();
+    if (chatHistory.length === 0 && !chatId) return renderNewChatEmpty();
+    if (chatHistory.length === 0 && chatId) return renderExistingChatEmpty();
+    return chatHistory.map(renderMessage);
+  };
+
+  // Render input area
+  const renderInputArea = () => {
+    if (isLoadingChat || error) return null;
+    
     return (
-      <div className="flex h-screen bg-base-200">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <span className="loading loading-spinner loading-lg"></span>
+      <div className="p-4 border-t border-base-300 bg-base-100">
+        <div className="flex items-center gap-2">
+          <textarea
+            className="textarea textarea-bordered flex-1 resize-none"
+            rows={1}
+            placeholder="Type your message..."
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isStreaming}
+          />
+          <button
+            className={`btn btn-primary ${isStreaming ? "loading" : ""}`}
+            onClick={sendMessage}
+            disabled={isStreaming || !inputMessage.trim()}
+          >
+            <Send size={20} />
+          </button>
         </div>
       </div>
     );
+  };
+  if (authLoading) {
+    return renderAuthLoading();
   }
 
   return (
     <div className="flex h-screen bg-base-200 text-base-content">
       <Sidebar />
       <main className="flex-1 flex flex-col max-h-screen">
-        {/* Header */} 
+        {/* Header */}
         <div className="bg-base-100 shadow-sm p-3 px-4 border-b border-base-300 flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/private/chathistory" className="btn btn-ghost btn-sm mr-2">
@@ -229,85 +359,15 @@ export default function Chat() {
               {chatTitle || "Chat"}
             </h2>
           </div>
-          {/* Placeholder for potential future actions like rename chat from here */} 
         </div>
 
-        {/* Chat Display Area */} 
+        {/* Chat Display Area */}
         <div ref={chatDisplayRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200/50">
-          {isLoadingChat ? (
-            <div className="flex justify-center items-center h-full">
-              <span className="loading loading-dots loading-lg"></span>
-            </div>
-          ) : error ? (
-            <div className="text-center text-red-500 p-4">
-              <p>Error loading chat: {error}</p>
-              <Link href="/private/chathistory" className="link link-primary mt-2">
-                Back to Chat History
-              </Link>
-            </div>
-          ) : chatHistory.length === 0 && !chatId ? (
-            // This state is less likely if navigation always comes from ChatHistory with an ID
-            <div className="text-center text-gray-500 pt-10">
-              <MessageSquare size={48} className="mx-auto mb-4" />
-              <p className="text-xl">Start a new conversation</p>
-              <p className="text-sm">Type your message below to begin.</p>
-            </div>
-          ) : chatHistory.length === 0 && chatId ? (
-             // Existing chat session is empty
-            <div className="text-center text-gray-500 pt-10">
-              <MessageSquare size={48} className="mx-auto mb-4" />
-              <p className="text-xl">This chat is empty.</p>
-              <p className="text-sm">Send a message to start the conversation.</p>
-            </div>
-          ) : (
-            chatHistory.map((msg, index) => (
-              <div
-                key={index} // Consider more stable keys if messages can be reordered/deleted independently
-                className={`chat ${msg.kind === "request" ? "chat-end" : "chat-start"}`}
-              >
-                <div className={`chat-bubble prose prose-sm max-w-prose-sm 
-                                ${msg.kind === "request" ? "chat-bubble-primary" 
-                                : msg.parts[0].content.startsWith("Error:") ? "chat-bubble-error" 
-                                : "chat-bubble-neutral"}`}
-                >
-                  {/* Render multiple parts if a message ever has them */}
-                  {msg.parts.map((part, partIndex) => (
-                    <p key={partIndex}>{part.content}</p>
-                  ))}
-                </div>
-                {msg.timestamp && (
-                  <div className="chat-footer opacity-50 text-xs">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+          {renderChatContent()}
         </div>
 
-        {/* Input Area */} 
-        {!isLoadingChat && !error && (
-          <div className="p-4 border-t border-base-300 bg-base-100">
-            <div className="flex items-center gap-2">
-              <textarea
-                className="textarea textarea-bordered flex-1 resize-none"
-                rows={1} // Start with 1 row, can expand via CSS or JS if needed
-                placeholder="Type your message..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isStreaming}
-              />
-              <button
-                className={`btn btn-primary ${isStreaming ? "loading" : ""}`}
-                onClick={sendMessage}
-                disabled={isStreaming || !inputMessage.trim()}
-              >
-                <Send size={20} />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Input Area */}
+        {renderInputArea()}
       </main>
     </div>
   );
