@@ -165,9 +165,9 @@ export default function ChatHistoryPage() {
 
   // Render loading state
   const renderLoadingState = () => (
-    <div className="flex h-screen bg-base-200">
+    <div className="hero min-h-screen bg-base-200">
       <Sidebar />
-      <div className="flex-1 flex items-center justify-center">
+      <div className="hero-content">
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     </div>
@@ -175,10 +175,10 @@ export default function ChatHistoryPage() {
 
   // Render error state
   const renderErrorState = () => (
-    <div className="flex h-screen bg-base-200">
+    <div className="hero min-h-screen bg-base-200">
       <Sidebar />
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-red-500">Error: {error}</div>
+      <div className="hero-content p-4">
+        <div className="alert alert-error shadow-lg">Error: {error}</div>
       </div>
     </div>
   );
@@ -307,8 +307,8 @@ export default function ChatHistoryPage() {
         {chatSessions.length === 0 ? (
           renderEmptyState()
         ) : (
-          <div className="bg-base-100 shadow-xl rounded-lg">
-            <table className="table w-full">
+          <div className="card shadow-xl">
+            <table className="table">
               <thead>
                 <tr>
                   <th className="p-4 text-left">Name</th>

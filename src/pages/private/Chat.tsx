@@ -283,27 +283,29 @@ export default function Chat() {
   );
 
   // Render a single chat message
-  const renderMessage = (msg: ChatMessage, index: number) => (
-    <div
-      key={index}
-      className={`chat ${msg.kind === "request" ? "chat-end" : "chat-start"}`}
-    >
-      <div className={`chat-bubble prose prose-sm max-w-prose-sm 
-                      ${msg.kind === "request" ? "chat-bubble-primary" 
-                      : msg.parts[0].content.startsWith("Error:") ? "chat-bubble-error" 
-                      : "chat-bubble-neutral"}`}
-      >
-        {msg.parts.map((part, partIndex) => (
-          <p key={partIndex}>{part.content}</p>
-        ))}
-      </div>
-      {msg.timestamp && (
-        <div className="chat-footer opacity-50 text-xs">
-          {new Date(msg.timestamp).toLocaleTimeString()}
+  const renderMessage = (msg: ChatMessage, index: number) => {
+    const isUser = msg.kind === "request";
+    const bubbleClass = isUser
+      ? "chat-bubble-primary"
+      : msg.parts[0].content.startsWith("Error:")
+      ? "chat-bubble-error"
+      : "chat-bubble-neutral";
+
+    return (
+      <div key={index} className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
+        <div className={`chat-bubble ${bubbleClass}`}>  
+          {msg.parts.map((part, partIndex) => (
+            <p key={partIndex}>{part.content}</p>
+          ))}
         </div>
-      )}
-    </div>
-  );
+        {msg.timestamp && (
+          <div className="chat-footer opacity-50 text-xs">
+            {new Date(msg.timestamp).toLocaleTimeString()}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Render chat display area content
   const renderChatContent = () => {
