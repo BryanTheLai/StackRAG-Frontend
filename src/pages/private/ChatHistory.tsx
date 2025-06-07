@@ -165,9 +165,9 @@ export default function ChatHistoryPage() {
 
   // Render loading state
   const renderLoadingState = () => (
-    <div className="hero min-h-screen bg-base-200">
+    <div className="flex h-screen bg-base-200 text-base-content"> {/* Use the same flex container as the final layout */}
       <Sidebar />
-      <div className="hero-content">
+      <div className="flex-1 flex items-center justify-center"> {/* Centering the spinner within the flex-1 area */}
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     </div>
