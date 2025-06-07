@@ -8,6 +8,7 @@ import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
 import Documents from "./pages/private/Documents";
 import Chat from "./pages/private/Chat";
+import ChatHistoryPage from "./pages/private/ChatHistory"; // Corrected import path
 
 export default function App() {
   return (
@@ -27,9 +28,14 @@ export default function App() {
                 <Documents />
               </PrivateRoute>
             </Route>
-            <Route path="/private/chat">
+            <Route path="/private/chat/:id">
               <PrivateRoute>
                 <Chat />
+              </PrivateRoute>
+            </Route>
+            <Route path="/private/chathistory">
+              <PrivateRoute>
+                <ChatHistoryPage />
               </PrivateRoute>
             </Route>
             <Route path="*">
