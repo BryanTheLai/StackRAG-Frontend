@@ -52,7 +52,7 @@ export default function Login() {
         <div className="text-center lg:text-left lg:pl-10">
           <h1 className="text-5xl font-bold">Login now!</h1>
           <p className="py-6">
-            Access your AI CFO Assistant dashboard to manage your finances
+            Access your Stackifier dashboard to manage your finances
             effectively.
           </p>
         </div>
