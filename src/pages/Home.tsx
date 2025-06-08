@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Zap} from "lucide-react";
+import { Zap } from "lucide-react";
 
 export default function Home() {
   return (
@@ -60,7 +60,10 @@ export default function Home() {
             Designed for Reliability and Trust
           </h2>
           <p className="text-lg md:text-xl mb-12 max-w-2xl mx-auto text-base-content/80">
-            Accuracy is paramount. Our system ensures grounded answers from your documents, uses precise calculation tools (future), provides verifiable sources, and guarantees data privacy through multi-tenancy.
+            Accuracy is paramount. Our system ensures grounded answers from your
+            documents, uses precise calculation tools (future), provides
+            verifiable sources, and guarantees data privacy through
+            multi-tenancy.
           </p>{" "}
           <div className="flex justify-center space-x-4 md:space-x-8 mt-8 mb-4">
             <div className="w-24 h-12 md:w-32 md:h-16 bg-base-300 rounded-box flex items-center justify-center">

@@ -9,15 +9,22 @@ import { Link, useLocation } from "wouter";
 import Sidebar from "@/components/Sidebar";
 
 // Icons
-import { PlusCircle, Trash2, Edit3, MoreVertical, Check, X } from "lucide-react";
+import {
+  PlusCircle,
+  Trash2,
+  Edit3,
+  MoreVertical,
+  Check,
+  X,
+} from "lucide-react";
 
 // Types and services
 import type { ChatSession } from "@/supabase/chatService";
-import { 
-  createChatSession, 
-  fetchChatSessions, 
-  deleteChatSession, 
-  updateChatSessionTitle 
+import {
+  createChatSession,
+  fetchChatSessions,
+  deleteChatSession,
+  updateChatSessionTitle,
 } from "@/supabase/chatService";
 
 export default function ChatHistoryPage() {
@@ -29,7 +36,7 @@ export default function ChatHistoryPage() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Edit state
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -48,7 +55,8 @@ export default function ChatHistoryPage() {
         const sessions = await fetchChatSessions(user.id);
         setChatSessions(sessions);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to load sessions";
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load sessions";
         setError(errorMessage);
         console.error("Failed to load chat sessions:", err);
       } finally {
@@ -61,7 +69,7 @@ export default function ChatHistoryPage() {
   // Helper function to refresh chat sessions list
   const refreshChatSessions = async () => {
     if (!user?.id) return;
-    
+
     try {
       const sessions = await fetchChatSessions(user.id);
       setChatSessions(sessions);
@@ -72,7 +80,8 @@ export default function ChatHistoryPage() {
 
   // Helper function to handle errors consistently
   const handleError = (error: unknown, operation: string) => {
-    const errorMessage = error instanceof Error ? error.message : `Failed to ${operation}`;
+    const errorMessage =
+      error instanceof Error ? error.message : `Failed to ${operation}`;
     setError(errorMessage);
     console.error(`${operation} error:`, error);
   };
@@ -80,7 +89,7 @@ export default function ChatHistoryPage() {
   // Create new chat session and navigate to it
   const handleCreateNewChat = async () => {
     if (!user?.id) return;
-    
+
     try {
       const newSessionId = await createChatSession(user.id, "New Chat");
       await refreshChatSessions();
@@ -93,7 +102,7 @@ export default function ChatHistoryPage() {
   // Delete a chat session with confirmation
   const handleDelete = async (sessionId: string) => {
     if (!confirm("Are you sure you want to delete this chat session?")) return;
-    
+
     try {
       await deleteChatSession(sessionId);
       setChatSessions((prev) => prev.filter((s) => s.id !== sessionId));
@@ -120,7 +129,7 @@ export default function ChatHistoryPage() {
       alert("Title cannot be empty.");
       return;
     }
-    
+
     try {
       await updateChatSessionTitle(sessionId, newTitle.trim());
       await refreshChatSessions();
@@ -130,7 +139,7 @@ export default function ChatHistoryPage() {
       handleError(err, "update title");
     }
   };
-    // Format date as relative time (e.g., "2 hours ago", "Yesterday")
+  // Format date as relative time (e.g., "2 hours ago", "Yesterday")
   const formatRelativeTime = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -157,7 +166,7 @@ export default function ChatHistoryPage() {
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return "Yesterday";
     if (diffInDays < 30) return `${diffInDays} days ago`;
-    
+
     const diffInMonths = Math.floor(diffInDays / 30);
     if (diffInMonths === 1) return "1 month ago";
     return `${diffInMonths} months ago`;
@@ -165,9 +174,13 @@ export default function ChatHistoryPage() {
 
   // Render loading state
   const renderLoadingState = () => (
-    <div className="flex h-screen bg-base-200 text-base-content"> {/* Use the same flex container as the final layout */}
+    <div className="flex h-screen bg-base-200 text-base-content">
+      {" "}
+      {/* Use the same flex container as the final layout */}
       <Sidebar />
-      <div className="flex-1 flex items-center justify-center"> {/* Centering the spinner within the flex-1 area */}
+      <div className="flex-1 flex items-center justify-center">
+        {" "}
+        {/* Centering the spinner within the flex-1 area */}
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     </div>
@@ -198,8 +211,8 @@ export default function ChatHistoryPage() {
       value={newTitle}
       onChange={(e) => setNewTitle(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') handleSaveTitle(sessionId);
-        if (e.key === 'Escape') handleCancelEdit();
+        if (e.key === "Enter") handleSaveTitle(sessionId);
+        if (e.key === "Escape") handleCancelEdit();
       }}
       className="input input-sm input-bordered w-full max-w-xs"
       autoFocus
@@ -210,15 +223,15 @@ export default function ChatHistoryPage() {
   // Render edit actions (save/cancel buttons)
   const renderEditActions = (sessionId: string) => (
     <>
-      <button 
-        onClick={() => handleSaveTitle(sessionId)} 
+      <button
+        onClick={() => handleSaveTitle(sessionId)}
         className="btn btn-xs btn-ghost text-success mr-1"
         title="Save title"
       >
         <Check size={18} />
       </button>
-      <button 
-        onClick={handleCancelEdit} 
+      <button
+        onClick={handleCancelEdit}
         className="btn btn-xs btn-ghost text-error"
         title="Cancel edit"
       >
@@ -233,18 +246,21 @@ export default function ChatHistoryPage() {
       <label tabIndex={0} className="btn btn-ghost btn-xs">
         <MoreVertical size={18} />
       </label>
-      <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-36 z-10">
+      <ul
+        tabIndex={0}
+        className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-36 z-10"
+      >
         <li>
-          <button 
-            onClick={() => handleStartEdit(session)} 
+          <button
+            onClick={() => handleStartEdit(session)}
             className="flex items-center w-full text-left px-3 py-2 hover:bg-base-200 rounded"
           >
             <Edit3 size={16} className="mr-2" /> Rename
           </button>
         </li>
         <li>
-          <button 
-            onClick={() => handleDelete(session.id)} 
+          <button
+            onClick={() => handleDelete(session.id)}
             className="flex items-center w-full text-left text-error px-3 py-2 hover:bg-base-200 rounded"
           >
             <Trash2 size={16} className="mr-2" /> Delete
@@ -256,12 +272,18 @@ export default function ChatHistoryPage() {
 
   // Render a single session row
   const renderSessionRow = (session: ChatSession) => (
-    <tr key={session.id} className="border-b border-base-300 hover:bg-base-200/50">
+    <tr
+      key={session.id}
+      className="border-b border-base-300 hover:bg-base-200/50"
+    >
       <td className="p-4">
         {editingSessionId === session.id ? (
           renderTitleInput(session.id)
         ) : (
-          <Link href={`/private/chat/${session.id}`} className="link link-hover font-medium">
+          <Link
+            href={`/private/chat/${session.id}`}
+            className="link link-hover font-medium"
+          >
             {session.title || "Untitled Chat"}
           </Link>
         )}
@@ -271,10 +293,9 @@ export default function ChatHistoryPage() {
         {formatRelativeTime(session.updated_at)}
       </td>
       <td className="p-4 text-right">
-        {editingSessionId === session.id 
+        {editingSessionId === session.id
           ? renderEditActions(session.id)
-          : renderSessionActions(session)
-        }
+          : renderSessionActions(session)}
       </td>
     </tr>
   );
@@ -294,10 +315,7 @@ export default function ChatHistoryPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-semibold">My files</h1>
-          <button
-            onClick={handleCreateNewChat}
-            className="btn btn-primary"
-          >
+          <button onClick={handleCreateNewChat} className="btn btn-primary">
             <PlusCircle size={20} className="mr-2" />
             New Chat
           </button>
@@ -317,9 +335,7 @@ export default function ChatHistoryPage() {
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {chatSessions.map(renderSessionRow)}
-              </tbody>
+              <tbody>{chatSessions.map(renderSessionRow)}</tbody>
             </table>
           </div>
         )}

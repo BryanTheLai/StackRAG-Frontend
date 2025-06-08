@@ -23,7 +23,7 @@ export default function Chat() {
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const [chatTitle, setChatTitle] = useState<string | null>("Chat");
   const [error, setError] = useState<string | null>(null);
-  
+
   // UI refs
   const chatDisplayRef = useRef<HTMLDivElement>(null);
   // Load chat session on mount or when chatId/user changes
@@ -73,12 +73,14 @@ export default function Chat() {
   // Create user message object
   const createUserMessage = (content: string): ChatMessage => ({
     kind: "request",
-    parts: [{
-      content,
-      timestamp: new Date().toISOString(),
-      dynamic_ref: null,
-      part_kind: "user-prompt",
-    }],
+    parts: [
+      {
+        content,
+        timestamp: new Date().toISOString(),
+        dynamic_ref: null,
+        part_kind: "user-prompt",
+      },
+    ],
   });
 
   // Create placeholder response message
@@ -88,7 +90,10 @@ export default function Chat() {
   });
 
   // Update streaming response in chat history
-  const updateStreamingResponse = (textChunk: string, accumulatedText: string) => {
+  const updateStreamingResponse = (
+    textChunk: string,
+    accumulatedText: string
+  ) => {
     setChatHistory((prev) => {
       const updated = [...prev];
       const lastMessage = updated[updated.length - 1];
@@ -100,7 +105,10 @@ export default function Chat() {
   };
 
   // Handle streaming chat response
-  const handleStreamingResponse = async (response: Response, currentHistory: ChatMessage[]) => {
+  const handleStreamingResponse = async (
+    response: Response,
+    currentHistory: ChatMessage[]
+  ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let accumulatedText = "";
@@ -121,15 +129,17 @@ export default function Chat() {
           if (chunk.startsWith("event: stream_end")) {
             const finalMessage: ChatMessage = {
               kind: "response",
-              parts: [{ 
-                content: accumulatedText, 
-                part_kind: "text", 
-                timestamp: new Date().toISOString() 
-              }],
+              parts: [
+                {
+                  content: accumulatedText,
+                  part_kind: "text",
+                  timestamp: new Date().toISOString(),
+                },
+              ],
             };
             const finalHistory = [...currentHistory, finalMessage];
             setChatHistory(finalHistory);
-            
+
             if (chatId) {
               await updateChatSessionHistory(chatId, finalHistory);
             }
@@ -154,15 +164,17 @@ export default function Chat() {
       if (accumulatedText) {
         const finalMessage: ChatMessage = {
           kind: "response",
-          parts: [{ 
-            content: accumulatedText, 
-            part_kind: "text", 
-            timestamp: new Date().toISOString() 
-          }],
+          parts: [
+            {
+              content: accumulatedText,
+              part_kind: "text",
+              timestamp: new Date().toISOString(),
+            },
+          ],
         };
         const finalHistory = [...currentHistory, finalMessage];
         setChatHistory(finalHistory);
-        
+
         if (chatId) {
           await updateChatSessionHistory(chatId, finalHistory);
         }
@@ -176,12 +188,18 @@ export default function Chat() {
   // Handle errors in chat
   const handleChatError = (error: unknown) => {
     console.error("Streaming error:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during streaming.";
-    
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during streaming.";
+
     setChatHistory((prev) => {
       const updated = [...prev];
       // Remove placeholder if it exists
-      if (updated.length > 0 && updated[updated.length - 1].parts[0].content === "") {
+      if (
+        updated.length > 0 &&
+        updated[updated.length - 1].parts[0].content === ""
+      ) {
         updated.pop();
       }
       return [
@@ -196,12 +214,12 @@ export default function Chat() {
   };
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
-    
+
     const content = inputMessage.trim();
     const userMessage = createUserMessage(content);
     const placeholder = createPlaceholderMessage();
     const currentHistory = [...chatHistory, userMessage];
-    
+
     // Update UI immediately
     setChatHistory((prev) => [...prev, userMessage, placeholder]);
     setInputMessage("");
@@ -220,7 +238,9 @@ export default function Chat() {
 
       if (!response.ok || !response.body) {
         const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText || "Failed to stream"}`);
+        throw new Error(
+          `HTTP ${response.status}: ${errorText || "Failed to stream"}`
+        );
       }
 
       await handleStreamingResponse(response, currentHistory);
@@ -293,7 +313,7 @@ export default function Chat() {
 
     return (
       <div key={index} className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
-        <div className={`chat-bubble ${bubbleClass}`}>  
+        <div className={`chat-bubble ${bubbleClass}`}>
           {msg.parts.map((part, partIndex) => (
             <p key={partIndex}>{part.content}</p>
           ))}
@@ -319,7 +339,7 @@ export default function Chat() {
   // Render input area
   const renderInputArea = () => {
     if (isLoadingChat || error) return null;
-    
+
     return (
       <div className="p-4 border-t border-base-300 bg-base-100">
         <div className="flex items-center gap-2">
@@ -354,17 +374,26 @@ export default function Chat() {
         {/* Header */}
         <div className="bg-base-100 shadow-sm p-3 px-4 border-b border-base-300 flex items-center justify-between">
           <div className="flex items-center">
-            <Link href="/private/chathistory" className="btn btn-ghost btn-sm mr-2">
+            <Link
+              href="/private/chathistory"
+              className="btn btn-ghost btn-sm mr-2"
+            >
               <ArrowLeft size={20} />
             </Link>
-            <h2 className="text-xl font-semibold truncate" title={chatTitle || "Chat"}>
+            <h2
+              className="text-xl font-semibold truncate"
+              title={chatTitle || "Chat"}
+            >
               {chatTitle || "Chat"}
             </h2>
           </div>
         </div>
 
         {/* Chat Display Area */}
-        <div ref={chatDisplayRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200/50">
+        <div
+          ref={chatDisplayRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200/50"
+        >
           {renderChatContent()}
         </div>
 

@@ -48,7 +48,8 @@ export interface ChatSessionWithHistory extends ChatSessionBase {
 export async function createChatSession(
   userId: string,
   title?: string
-): Promise<string> { // Returns new session ID
+): Promise<string> {
+  // Returns new session ID
   const { data, error } = await supabase
     .from("chat_sessions")
     .insert({ user_id: userId, history: [], title: title || "New Chat" }) // created_at, updated_at have defaults or triggers
@@ -61,7 +62,9 @@ export async function createChatSession(
   return data.id;
 }
 
-export async function fetchChatSessions(userId: string): Promise<ChatSession[]> {
+export async function fetchChatSessions(
+  userId: string
+): Promise<ChatSession[]> {
   const { data, error } = await supabase
     .from("chat_sessions")
     .select("id, user_id, title, created_at, updated_at") // No history for list
@@ -99,7 +102,9 @@ export async function updateChatSessionTitle(
   }
 }
 
-export async function fetchChatSessionById(sessionId: string): Promise<ChatSessionWithHistory | null> {
+export async function fetchChatSessionById(
+  sessionId: string
+): Promise<ChatSessionWithHistory | null> {
   const { data, error } = await supabase
     .from("chat_sessions")
     .select("id, user_id, title, created_at, updated_at, history")
@@ -110,14 +115,17 @@ export async function fetchChatSessionById(sessionId: string): Promise<ChatSessi
     console.error("Error fetching chat session by ID:", error.message);
     // PGRST116: "JSON object requested, multiple (or no) rows returned"
     // This code means no rows found or RLS prevented access.
-    if (error.code === 'PGRST116') return null; 
+    if (error.code === "PGRST116") return null;
     throw error;
   }
   // Ensure history is an array, default to empty if null/undefined from DB
   return data ? { ...data, history: data.history || [] } : null;
 }
 
-export async function updateChatSessionHistory(sessionId: string, newHistory: ChatMessage[]): Promise<void> {
+export async function updateChatSessionHistory(
+  sessionId: string,
+  newHistory: ChatMessage[]
+): Promise<void> {
   const { error } = await supabase
     .from("chat_sessions")
     .update({ history: newHistory }) // Relies on DB trigger for updated_at
