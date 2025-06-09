@@ -232,15 +232,18 @@ export default function Dashboard() {
   }, [session, user, fetchIncomeStatementSummariesData, aggregateMonthlySummaries]);
 
   useEffect(() => {
-    const authJustFinishedLoading = prevAuthLoadingRef.current && !authLoading;
-    if (!authLoading && session && user) {
-      if (!initialPeriodsFetchedRef.current || authJustFinishedLoading) {
+    const justLoggedIn = prevAuthLoadingRef.current && !authLoading; // True if auth state changed from loading to loaded
+
+    if (session && user) { // User is authenticated
+      // Fetch available periods if it's the first time or if the user just logged in
+      if (!initialPeriodsFetchedRef.current || justLoggedIn) {
         fetchAvailablePeriods();
         initialPeriodsFetchedRef.current = true;
       }
-    } else if (authLoading && !session) { // Changed to authLoading
+    } else if (!session) { // User is not authenticated (e.g. logged out, session expired, or initial load)
+      // Reset dashboard state
       setPeriodOptions([ALL_TIME_OPTION]);
-      setSelectedPeriod(ALL_TIME_OPTION);
+      setSelectedPeriod(ALL_TIME_OPTION); // Default to ALL_TIME_OPTION
       setSummariesForChart([]);
       setCurrentYearAggregated(null);
       setPreviousYearAggregated(null);
@@ -249,6 +252,8 @@ export default function Dashboard() {
       setComparisonSelection(NO_COMPARISON_VALUE);
       setPrimaryMonthData(null);
       setComparisonPeriodData(null);
+      setStatusMsg('Initializing dashboard...'); // Reset status message
+      setErrorMsg(null); // Clear any existing errors
       initialPeriodsFetchedRef.current = false;
       lastFetchedSummariesForPeriodRef.current = null;
     }
@@ -256,30 +261,38 @@ export default function Dashboard() {
   }, [authLoading, session, user, fetchAvailablePeriods]);
 
   useEffect(() => {
-    const authIsStableAndLoggedIn = !authLoading && session && user;
-    if (authIsStableAndLoggedIn) {
+    if (session && user) { // User is authenticated
       if (selectedPeriod) {
+        // Fetch summaries if the selected period has changed
         if (selectedPeriod !== lastFetchedSummariesForPeriodRef.current) {
           fetchSummaries(selectedPeriod);
           lastFetchedSummariesForPeriodRef.current = selectedPeriod;
         }
-      } else if (lastFetchedSummariesForPeriodRef.current !== null) {
-        setSummariesForChart([]);
-        setCurrentYearAggregated(null);
-        setPreviousYearAggregated(null);
-        setAllPreviousYearSummaries([]);
-        lastFetchedSummariesForPeriodRef.current = null;
-      }
-    } else if (authLoading && !session) { // Changed to authLoading
-      if (lastFetchedSummariesForPeriodRef.current !== null) {
+      } else {
+        // If selectedPeriod becomes null (e.g., during initial load before periods are fetched)
+        // and data was previously fetched, clear that data.
+        if (lastFetchedSummariesForPeriodRef.current !== null) {
           setSummariesForChart([]);
           setCurrentYearAggregated(null);
           setPreviousYearAggregated(null);
           setAllPreviousYearSummaries([]);
+          setStatusMsg(null); // Clear status as no data is relevant for a "null" period
           lastFetchedSummariesForPeriodRef.current = null;
+        }
+      }
+    } else if (!session) { // User is not authenticated
+      // If user logs out or session is lost, and data was previously fetched, clear it.
+      // This is largely covered by the first useEffect but adds robustness.
+      if (lastFetchedSummariesForPeriodRef.current !== null) {
+        setSummariesForChart([]);
+        setCurrentYearAggregated(null);
+        setPreviousYearAggregated(null);
+        setAllPreviousYearSummaries([]);
+        // setStatusMsg('Initializing dashboard...'); // Or null, to be consistent with the first useEffect's reset
+        lastFetchedSummariesForPeriodRef.current = null;
       }
     }
-  }, [selectedPeriod, authLoading, session, user, fetchSummaries]);
+  }, [selectedPeriod, session, user, authLoading, fetchSummaries]); // authLoading is kept to react to its changes
   
   useEffect(() => {
     const findMonthData = (summaries: IncomeStatementSummary[], month: string, year: number): IncomeStatementSummary | null => {
@@ -371,9 +384,6 @@ export default function Dashboard() {
     <div className="flex h-screen bg-base-200">
       <Sidebar />
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-base-content">Income Statement Dashboard</h2>
-        </div>
         
         <div className="card bg-base-100 shadow-md">
           <div className="card-body p-4 flex-wrap flex-row items-center justify-between gap-2">
@@ -444,7 +454,7 @@ export default function Dashboard() {
                 <span className="ml-1">Refresh</span>
               </button>
             </div>
-            {statusMsg && <span className="text-sm text-base-content/70 w-full text-right pt-2 pr-2">{statusMsg}</span>}
+            {statusMsg && <span className="text-sm text-base-content/70 w-full text-right pt-2 pr-2 md:w-auto md:text-left md:pt-0 md:ml-4 self-end">{statusMsg}</span>}
           </div>
         </div>
 
@@ -475,8 +485,8 @@ export default function Dashboard() {
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
-                <XAxis dataKey="period_end_date_formatted" tick={{ fontSize: 12, fill: 'hsl(var(--bc) / 0.7)' }} />
-                <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--bc) / 0.7)' }} tickFormatter={(value) => formatDisplayNumber(value)} />
+                <XAxis dataKey="period_end_date_formatted" tick={{ fontSize: 12, fill: '#FFFFFF' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#FFFFFF' }} tickFormatter={(value) => formatDisplayNumber(value)} />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--b1))', 
@@ -496,9 +506,9 @@ export default function Dashboard() {
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px', color: 'hsl(var(--bc) / 0.8)' }} />
-                <Line type="monotone" dataKey="total_revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 6 }} name="Total Revenue" dot={false}/>
-                <Line type="monotone" dataKey="total_expenses" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 6 }} name="Total Expenses" dot={false}/>
-                <Line type="monotone" dataKey="net_income" stroke="#22c55e" strokeWidth={2} activeDot={{ r: 6 }} name="Net Income" dot={false}/>
+                <Line type="monotone" dataKey="total_revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 6 }} name="Total Revenue" dot={false} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="total_expenses" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 6 }} name="Total Expenses" dot={false} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="net_income" stroke="#22c55e" strokeWidth={2} activeDot={{ r: 6 }} name="Net Income" dot={false} isAnimationActive={false}/>
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -579,36 +589,36 @@ export default function Dashboard() {
           selectedMonth !== ALL_MONTHS_OPTION &&
           comparisonSelection === NO_COMPARISON_VALUE &&
           primaryMonthData && (
-            <div className="mt-6 card bg-base-100 shadow-xl">
-              <div className="card-body">
-                <h3 className="card-title text-lg font-semibold text-base-content mb-4">
-                  Summary for {primaryMonthLabel}
-                </h3>
-                <div className="stats stats-vertical md:stats-horizontal shadow bg-base-100 text-base-content w-full">
-                  <div className="stat">
-                    <div className="stat-title text-base-content/80">Total Revenue</div>
-                    <div className="stat-value text-blue-500">
-                      {formatCurrency(primaryMonthData.total_revenue, primaryMonthData.currency)}
-                    </div>
-                    <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
+          <div className="mt-6 card bg-base-100 shadow-xl">
+            <div className="card-body">
+              <h3 className="card-title text-lg font-semibold text-base-content mb-4">
+                Summary for {primaryMonthLabel}
+              </h3>
+              <div className="stats stats-vertical md:stats-horizontal shadow bg-base-100 text-base-content w-full">
+                <div className="stat">
+                  <div className="stat-title text-base-content/80">Total Revenue</div>
+                  <div className="stat-value text-blue-500">
+                    {formatCurrency(primaryMonthData.total_revenue, primaryMonthData.currency)}
                   </div>
-                  <div className="stat">
-                    <div className="stat-title text-base-content/80">Total Expenses</div>
-                    <div className="stat-value text-red-500">
-                      {formatCurrency(primaryMonthData.total_expenses, primaryMonthData.currency)}
-                    </div>
-                     <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
+                  <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-title text-base-content/80">Total Expenses</div>
+                  <div className="stat-value text-red-500">
+                    {formatCurrency(primaryMonthData.total_expenses, primaryMonthData.currency)}
                   </div>
-                  <div className="stat">
-                    <div className="stat-title text-base-content/80">Net Income</div>
-                    <div className={`stat-value ${primaryMonthData.net_income >= 0 ? 'text-green-500' : 'text-error'}`}>
-                      {formatCurrency(primaryMonthData.net_income, primaryMonthData.currency)}
-                    </div>
-                     <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
+                   <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-title text-base-content/80">Net Income</div>
+                  <div className={`stat-value ${primaryMonthData.net_income >= 0 ? 'text-green-500' : 'text-error'}`}>
+                    {formatCurrency(primaryMonthData.net_income, primaryMonthData.currency)}
                   </div>
+                   <div className="stat-desc text-base-content/60">For {primaryMonthData.period_end_date}</div>
                 </div>
               </div>
             </div>
+          </div>
         )}
 
          {selectedPeriod !== ALL_TIME_OPTION && selectedPeriod !== null && 
