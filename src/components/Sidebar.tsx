@@ -181,16 +181,15 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                             </span>
                           </Link>
                         ))}
-                      {!chatHistoryError &&
-                        chatSessions.length > 0 && ( // Show "View all" if there are any chats
-                          <Link
-                            href="/private/chathistory"
-                            className="block px-3 py-1 rounded text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content font-medium"
-                            onClick={() => setShowChatHistoryDropdown(false)} // Close dropdown on link click
-                          >
-                            View all...
-                          </Link>
-                        )}
+                      {!chatHistoryError && (
+                        <Link
+                          href="/private/chathistory"
+                          className="block px-3 py-1 rounded text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content font-medium"
+                          onClick={() => setShowChatHistoryDropdown(false)} // Close dropdown on link click
+                        >
+                          View all...
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>
