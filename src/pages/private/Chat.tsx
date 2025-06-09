@@ -9,6 +9,8 @@ import {
   fetchChatSessionById,
   updateChatSessionHistory,
 } from "@/supabase/chatService";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function Chat() {
   // Authentication and routing
@@ -305,24 +307,37 @@ export default function Chat() {
   // Render a single chat message
   const renderMessage = (msg: ChatMessage, index: number) => {
     const isUser = msg.kind === "request";
+    // Determine bubble class based on user, error, or normal AI response
     const bubbleClass = isUser
       ? "chat-bubble-primary"
-      : msg.parts[0].content.startsWith("Error:")
+      : msg.parts.some((part) => part.content.startsWith("Error:"))
       ? "chat-bubble-error"
       : "chat-bubble-neutral";
 
+    // Determine chat alignment based on user or AI
+    const chatAlignment = isUser ? "chat-end" : "chat-start";
+
     return (
-      <div key={index} className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
-        <div className={`chat-bubble ${bubbleClass}`}>
+      <div key={index} className={`chat ${chatAlignment}`}>
+        <div className={`chat-bubble ${bubbleClass} prose max-w-full`}>{/* Added prose and max-w-full for better markdown styling */}
           {msg.parts.map((part, partIndex) => (
-            <p key={partIndex}>{part.content}</p>
+            <ReactMarkdown
+              key={partIndex}
+              remarkPlugins={[remarkGfm]}
+              // Ensure links open in a new tab and have security attributes
+              components={{
+                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
+                thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
+                th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
+                td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
+                tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
+              }}
+            >
+              {part.content}
+            </ReactMarkdown>
           ))}
         </div>
-        {msg.timestamp && (
-          <div className="chat-footer opacity-50 text-xs">
-            {new Date(msg.timestamp).toLocaleTimeString()}
-          </div>
-        )}
       </div>
     );
   };
