@@ -25,7 +25,7 @@ export default function Home() {
 
             {/* Description */}
             <p className="text-lg md:text-xl lg:text-2xl text-slate-300 mb-10 leading-relaxed max-w-4xl mx-auto">
-              Income Statement Dashbard coming soon!
+              Charts in chat coming soon!
             </p>
 
             {/* Action Buttons */}

@@ -11,6 +11,38 @@ import {
 } from "@/supabase/chatService";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ChartComponent } from "@/components/ChartComponent";
+import type { ChartData } from "@/types/chart";
+
+// Constants for chart processing
+const CHART_OPEN_TAG = '<ChartData>';
+const CHART_CLOSE_TAG = '</ChartData>';
+
+// Utility to parse chart data from string
+const parseChartDataFromString = (potentialChartString: string): ChartData | null => {
+  const trimmedString = potentialChartString.trim();
+  if (trimmedString.startsWith(CHART_OPEN_TAG) && trimmedString.endsWith(CHART_CLOSE_TAG)) {
+    try {
+      // Extract JSON string from between the tags
+      const jsonString = trimmedString.slice(CHART_OPEN_TAG.length, -CHART_CLOSE_TAG.length);
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse chart JSON:', error, '\\nOriginal string part:', potentialChartString);
+      return null;
+    }
+  }
+  return null;
+};
+
+// Helper to decode HTML entities (Added)
+const decodeHtmlEntities = (html: string): string => {
+  if (typeof window !== 'undefined') {
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+  }
+  return html; // Fallback for non-browser environments
+};
 
 export default function Chat() {
   // Authentication and routing
@@ -319,24 +351,43 @@ export default function Chat() {
 
     return (
       <div key={index} className={`chat ${chatAlignment}`}>
-        <div className={`chat-bubble ${bubbleClass} prose max-w-full`}>{/* Added prose and max-w-full for better markdown styling */}
-          {msg.parts.map((part, partIndex) => (
-            <ReactMarkdown
-              key={partIndex}
-              remarkPlugins={[remarkGfm]}
-              // Ensure links open in a new tab and have security attributes
-              components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
-                thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
-                th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
-                td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
-                tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
-              }}
-            >
-              {part.content}
-            </ReactMarkdown>
-          ))}
+        <div className={`chat-bubble ${bubbleClass} prose max-w-full`}>
+          {msg.parts.map((part, partIndex) => {
+            const decodedContent = decodeHtmlEntities(part.content); // Decode content
+            // Split content by chart tags
+            const contentParts = decodedContent.split(new RegExp(`(${CHART_OPEN_TAG}[\\s\\S]*?${CHART_CLOSE_TAG})`, 'g')).filter(Boolean);
+
+            return contentParts.map((contentPart, contentPartIndex) => {
+              const chartData = parseChartDataFromString(contentPart); // Try to parse the content part as chart data
+
+              if (chartData) {
+                // If chartData is not null, it's a valid chart block
+                return <ChartComponent key={`${partIndex}-${contentPartIndex}`} data={chartData} />;
+              } else {
+                // Otherwise, render as Markdown
+                // Use the original contentPart here to preserve any leading/trailing spaces
+                // that might be relevant for Markdown formatting (e.g., code blocks, preformatted text)
+                // but were trimmed by parseChartDataFromString for its checks.
+                // However, since ReactMarkdown itself will handle markdown, passing the raw contentPart is fine.
+                return (
+                  <ReactMarkdown
+                    key={`${partIndex}-${contentPartIndex}`}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                      table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
+                      thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
+                      th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
+                      td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
+                      tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
+                    }}
+                  >
+                    {contentPart}
+                  </ReactMarkdown>
+                );
+              }
+            });
+          })}
         </div>
       </div>
     );
