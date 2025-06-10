@@ -351,7 +351,7 @@ export default function Chat() {
 
     return (
       <div key={index} className={`chat ${chatAlignment}`}>
-        <div className={`chat-bubble ${bubbleClass} prose max-w-full`}>
+        <div className={`chat-bubble ${bubbleClass} max-w-full`}> {/* Removed 'prose' class */}
           {msg.parts.map((part, partIndex) => {
             const decodedContent = decodeHtmlEntities(part.content); // Decode content
             // Split content by chart tags
@@ -365,25 +365,24 @@ export default function Chat() {
                 return <ChartComponent key={`${partIndex}-${contentPartIndex}`} data={chartData} />;
               } else {
                 // Otherwise, render as Markdown
-                // Use the original contentPart here to preserve any leading/trailing spaces
-                // that might be relevant for Markdown formatting (e.g., code blocks, preformatted text)
-                // but were trimmed by parseChartDataFromString for its checks.
-                // However, since ReactMarkdown itself will handle markdown, passing the raw contentPart is fine.
+                // Wrap ReactMarkdown with a div having the 'prose' class
                 return (
-                  <ReactMarkdown
-                    key={`${partIndex}-${contentPartIndex}`}
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                      table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
-                      thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
-                      th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
-                      td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
-                      tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
-                    }}
-                  >
-                    {contentPart}
-                  </ReactMarkdown>
+                  <div className="prose" key={`${partIndex}-${contentPartIndex}-prose-wrapper`}>
+                    <ReactMarkdown
+                      key={`${partIndex}-${contentPartIndex}`}
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                        table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
+                        thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
+                        th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
+                        td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
+                        tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
+                      }}
+                    >
+                      {contentPart}
+                    </ReactMarkdown>
+                  </div>
                 );
               }
             });
