@@ -15,28 +15,29 @@ const CHART_COLORS = [
   '#82CA9D', '#A4DE6C', '#D0ED57', '#FFC658'
 ];
 
-// Basic styling, can be enhanced with Tailwind/DaisyUI theme variables
+// Adjusted styling for better dark mode visibility
 const CHART_STYLES = {
   tooltip: {
     contentStyle: {
-      backgroundColor: 'var(--fallback-b1,oklch(var(--b1)/1))', // Use DaisyUI background
-      color: 'var(--fallback-bc,oklch(var(--bc)/1))', // Use DaisyUI text color
-      border: '1px solid var(--fallback-b3,oklch(var(--b3)/1))',
-      borderRadius: '0.5rem'
+      backgroundColor: 'rgba(55, 65, 81, 0.95)', // Dark semi-transparent background (e.g., Tailwind gray-700)
+      color: '#F3F4F6', // Light text (e.g., Tailwind gray-100)
+      border: '1px solid #4B5563', // Subtle border (e.g., Tailwind gray-600)
+      borderRadius: '0.5rem',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' // Adding a subtle shadow
     },
-    labelStyle: { color: 'var(--fallback-bc,oklch(var(--bc)/1))' },
-    itemStyle: { color: 'var(--fallback-bc,oklch(var(--bc)/1))' },
+    labelStyle: { color: '#E5E7EB', fontWeight: 'bold' as 'bold' }, // Light gray, bold for category names
+    itemStyle: { color: '#D1D5DB' }, // Lighter gray for item text
   },
   legend: {
-    wrapperStyle: { color: 'var(--fallback-bc,oklch(var(--bc)/1))', paddingTop: '10px' },
+    wrapperStyle: { color: '#D1D5DB', paddingTop: '10px' }, // Light gray text (e.g., Tailwind gray-300)
   },
   axis: {
-    stroke: "var(--fallback-bc,oklch(var(--bc)/0.6))", // Lighter text color for axis lines
-    tick: { fill: 'var(--fallback-bc,oklch(var(--bc)/0.8))' }, // Text color for ticks
+    stroke: "#9CA3AF", // Medium gray for axis lines (e.g., Tailwind gray-400)
+    tick: { fill: '#D1D5DB' }, // Light gray for axis text/ticks (e.g., Tailwind gray-300)
   },
   grid: {
     strokeDasharray: "3 3",
-    stroke: "var(--fallback-b3,oklch(var(--b3)/0.5))", // Use border color for grid
+    stroke: "#4B5563", // Darker, subtle grid lines (e.g., Tailwind gray-600)
   },
 };
 
@@ -94,13 +95,14 @@ const renderPieChartInternal = (chartData: ChartData['data'], dataKeys: ChartDat
 );
 
 // Helper function to render Composed Chart
-const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => {
-  const barKey = dataKeys?.bar || DEFAULT_DATA_KEYS.bar;
-  const lineKey = dataKeys?.line || DEFAULT_DATA_KEYS.line;
-  const areaKey = dataKeys?.area || DEFAULT_DATA_KEYS.area;
+const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys'], composedConfig: ChartData['composed_config']) => {
+  // Use keys from composed_config if available, otherwise fallback to data_keys or defaults
+  const barKeys = composedConfig?.bar_keys || (dataKeys?.bar ? [dataKeys.bar] : [DEFAULT_DATA_KEYS.bar]);
+  const lineKeys = composedConfig?.line_keys || (dataKeys?.line ? [dataKeys.line] : [DEFAULT_DATA_KEYS.line]);
+  const areaKeys = composedConfig?.area_keys || (dataKeys?.area ? [dataKeys.area] : [DEFAULT_DATA_KEYS.area]);
 
   const hasDataForKey = (keyToCheck: string) =>
-    dataKeys?.[keyToCheck.toLowerCase()] || (chartData.length > 0 && chartData[0]?.[keyToCheck] !== undefined);
+    chartData.length > 0 && chartData[0]?.[keyToCheck] !== undefined;
 
   return (
     <ComposedChart data={chartData}>
@@ -109,15 +111,15 @@ const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: Cha
       <YAxis {...CHART_STYLES.axis} />
       <Tooltip {...CHART_STYLES.tooltip} />
       <Legend {...CHART_STYLES.legend} />
-      {hasDataForKey(barKey) &&
-        <Bar dataKey={barKey} fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-      }
-      {hasDataForKey(lineKey) &&
-        <Line type="monotone" dataKey={lineKey} stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-      }
-      {hasDataForKey(areaKey) &&
-        <Area type="monotone" dataKey={areaKey} fill={CHART_COLORS[5]} stroke={CHART_COLORS[5]} fillOpacity={0.6} />
-      }
+      {barKeys.map((key, index) => hasDataForKey(key) && (
+        <Bar key={`bar-${key}`} dataKey={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
+      ))}
+      {lineKeys.map((key, index) => hasDataForKey(key) && (
+        <Line key={`line-${key}`} type="monotone" dataKey={key} stroke={CHART_COLORS[(barKeys.length + index) % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+      ))}
+      {areaKeys.map((key, index) => hasDataForKey(key) && (
+        <Area key={`area-${key}`} type="monotone" dataKey={key} fill={CHART_COLORS[(barKeys.length + lineKeys.length + index) % CHART_COLORS.length]} stroke={CHART_COLORS[(barKeys.length + lineKeys.length + index) % CHART_COLORS.length]} fillOpacity={0.6} />
+      ))}
     </ComposedChart>
   );
 };
@@ -127,7 +129,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
     bar: renderBarChartInternal,
     line: renderLineChartInternal,
     pie: renderPieChartInternal,
-    composed: renderComposedChartInternal,
+    composed: (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => renderComposedChartInternal(chartData, dataKeys, data.composed_config),
   };
 
   const renderChart = () => {
@@ -141,18 +143,29 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
       case 'composed':
         return chartRenderers.composed(data.data, data.data_keys);
       default:
-        // This will cause a compile-time error if any ChartData['type'] is not handled above.
         const exhaustiveCheck: never = data.type;
-        // Runtime fallback message.
         return <div className="text-red-400">Unsupported chart type: {String(exhaustiveCheck)}</div>;
     }
   };
 
   return (
-    <div className="my-4 bg-base-300 p-4 rounded-lg shadow-xl"> {/* Adjusted bg to base-300 for theme consistency */}
+    <div className="my-4 bg-base-300 p-4 rounded-lg shadow-xl">
+      {data.title && <h3 className="text-lg font-semibold mb-2 text-center">{data.title}</h3>}
       <ResponsiveContainer width="100%" height={300}>
         {renderChart()}
       </ResponsiveContainer>
+      {data.metadata && (
+        <div className="mt-2 text-xs text-base-content/70 flex flex-wrap justify-center gap-x-4 gap-y-1">
+          {data.metadata.currency && <span>Currency: {data.metadata.currency}</span>}
+          {data.metadata.period && <span>Period: {data.metadata.period}</span>}
+          {data.metadata.unit && <span>Unit: {data.metadata.unit}</span>}
+          {Object.entries(data.metadata)
+            .filter(([key]) => !['currency', 'period', 'unit'].includes(key))
+            .map(([key, value]) => (
+              <span key={key}>{`${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`}</span>
+            ))}
+        </div>
+      )}
     </div>
   );
 });
