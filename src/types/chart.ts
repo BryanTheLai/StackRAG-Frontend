@@ -21,4 +21,9 @@ export interface ChartData {
     area_keys?: string[];
     [key: string]: any; // Allow other composed_config properties
   };
+  pie_config?: { // Added: Specific configuration for pie charts
+    data_key?: string;
+    label_key?: string;
+    [key: string]: any; // Allow other pie_config properties
+  };
 }

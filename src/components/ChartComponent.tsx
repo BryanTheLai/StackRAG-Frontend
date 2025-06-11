@@ -73,26 +73,36 @@ const renderLineChartInternal = (chartData: ChartData['data'], dataKeys: ChartDa
 );
 
 // Helper function to render Pie Chart
-const renderPieChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => (
+const renderPieChartInternal = (
+  chartDataItems: ChartData['data'],
+  pieConfig: ChartData['pie_config'] | undefined,
+  fallbackDataKeyFromDataKeys: string | undefined
+) => {
+  const actualDataKey = pieConfig?.data_key || fallbackDataKeyFromDataKeys || DEFAULT_DATA_KEYS.pie;
+  const actualNameKey = pieConfig?.label_key; // If undefined, Recharts Pie defaults to 'name'
+
+  return (
   <PieChart>
     <Tooltip {...CHART_STYLES.tooltip} />
     <Legend {...CHART_STYLES.legend} />
     <Pie
-      data={chartData}
+      data={chartDataItems}
       cx="50%"
       cy="50%"
       labelLine={false}
       label={({ name, percent, value }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
       outerRadius="80%"
-      fill={CHART_COLORS[2]}
-      dataKey={dataKeys?.pie || DEFAULT_DATA_KEYS.pie}
+      fill={CHART_COLORS[2]} // Base fill, overridden by Cells
+      dataKey={actualDataKey}
+      nameKey={actualNameKey} // Use the resolved nameKey
     >
-      {chartData.map((_entry, index) => (
+      {chartDataItems.map((_entry, index) => (
         <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
       ))}
     </Pie>
   </PieChart>
-);
+  );
+};
 
 // Helper function to render Composed Chart
 const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys'], composedConfig: ChartData['composed_config']) => {
@@ -128,7 +138,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
   const chartRenderers = {
     bar: renderBarChartInternal,
     line: renderLineChartInternal,
-    pie: renderPieChartInternal,
+    pie: renderPieChartInternal, // Pass data items, pie_config, and fallback data_keys.pie
     composed: (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => renderComposedChartInternal(chartData, dataKeys, data.composed_config),
   };
 
@@ -139,7 +149,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
       case 'line':
         return chartRenderers.line(data.data, data.data_keys);
       case 'pie':
-        return chartRenderers.pie(data.data, data.data_keys);
+        return chartRenderers.pie(data.data, data.pie_config, data.data_keys?.pie);
       case 'composed':
         return chartRenderers.composed(data.data, data.data_keys);
       default:
