@@ -11,6 +11,7 @@ import {
 } from "@/supabase/chatService";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { ChartComponent } from "@/components/ChartComponent";
 import type { ChartData } from "@/types/chart";
 
@@ -367,12 +368,11 @@ export default function Chat() {
                 // Otherwise, render as Markdown
                 // Wrap ReactMarkdown with a div having the 'prose' class
                 return (
-                  <div className="prose" key={`${partIndex}-${contentPartIndex}-prose-wrapper`}>
-                    <ReactMarkdown
+                  <div className="prose" key={`${partIndex}-${contentPartIndex}-prose-wrapper`}>                    <ReactMarkdown
                       key={`${partIndex}-${contentPartIndex}`}
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={{
-                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-500" />,
                         table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
                         thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
                         th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
