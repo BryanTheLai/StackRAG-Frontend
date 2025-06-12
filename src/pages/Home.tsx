@@ -33,18 +33,21 @@ export default function Home() {
             </Link>
             {/* Updated Contact Section */}
             <div className="mt-8 lg:text-left text-center text-base">
-              <p className="mb-2">
-                Building this for you and would love your feedback!
-              </p>
               <p className="mb-3">
-                Have workflows you want to automate? Feel free to contact us:
+                Have a workflow you'd love
+                to automate? We're
+                <span className="font-semibold"> building custom solutions</span>, even
+                local-only tools just for you.
               </p>
+              
+              Just reach out and we'll build the solution you need:
+              <span> </span>
               <a
                 href="https://mail.google.com/mail/?view=cm&fs=1&to=stackifier@gmail.com
 "
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-sky-400 hover:text-sky-300 text-lg block lg:inline-block"
+                className="font-semibold text-sky-400 hover:text-sky-300 block lg:inline-block"
               >
                 stackifier@gmail.com
               </a>
