@@ -12,7 +12,7 @@ export default function Home() {
           {/* Alpha Launch Badge */}
           <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-sky-500/20 text-sky-100 border border-sky-500/30 mb-8">
             <Zap size={16} className="w-4 h-4 mr-2" />
-            Alpha Launch: Now with Interactive Charts!
+            Alpha Launch: Auto-forecast coming soon!
           </div>
 
           {/* Main Heading */}
