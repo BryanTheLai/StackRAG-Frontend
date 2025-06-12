@@ -18,12 +18,12 @@ export default function Home() {
               </div>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-main">
-              Instant Financial Insights, Visually.
+              Stackifier
             </h1>
             <p className="text-lg sm:text-xl text-slate-300 mb-8 leading-relaxed">
-              Transform your documents into actionable intelligence. Get clear
-              summaries, dynamic charts, and organized tables—all within an
-              intuitive chat interface.
+              Stop drowning in spreadsheets. Upload your financial documents and
+              get instant summaries, interactive charts, and organized
+              tables—all through a simple chat.
             </p>
             <Link
               href="/login"
@@ -40,10 +40,13 @@ export default function Home() {
                 Help us shape the products future to work for you:
               </p>
               <a
-                href="mailto:owner@stackifier.com"
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=stackifier@gmail.com
+"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="font-semibold text-sky-400 hover:text-sky-300 text-lg block lg:inline-block"
               >
-                owner@stackifier.com
+                stackifier@gmail.com
               </a>
             </div>
           </div>
@@ -72,16 +75,14 @@ export default function Home() {
                 Structured Data, Effortlessly
               </h2>
               <p className="text-lg md:text-xl mb-6 text-base-content/80">
-                Say goodbye to manual data sifting. Our AI intelligently extracts
-                and organizes financial data into clean, easy-to-understand tables
-                directly within your chat.
+                Say goodbye to manual data sifting. Our AI intelligently
+                extracts and organizes financial data into clean,
+                easy-to-understand tables directly within your chat.
               </p>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <CheckCircle className="w-6 h-6 text-primary mr-3 shrink-0" />
-                  <span>
-                    Automated extraction from PDFs
-                  </span>
+                  <span>Automated extraction from PDFs</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="w-6 h-6 text-primary mr-3 shrink-0" />
@@ -120,10 +121,11 @@ export default function Home() {
           </h2>
           <p className="text-lg md:text-xl mb-12 max-w-2xl mx-auto text-base-content/80">
             Accuracy is paramount. Every insight and piece of data presented in
-            chat is directly backed by your uploaded documents, ensuring verifiable
-            sources and truly grounded answers. Combined with precise calculation
-            tools (coming soon) and robust data privacy through multi-tenancy, you
-            can confidently rely on the financial intelligence provided.
+            chat is directly backed by your uploaded documents, ensuring
+            verifiable sources and truly grounded answers. Combined with precise
+            calculation tools (coming soon) and robust data privacy through
+            multi-tenancy, you can confidently rely on the financial
+            intelligence provided.
           </p>{" "}
           <div className="flex justify-center space-x-4 md:space-x-8 mt-8 mb-4">
             <div className="w-24 h-12 md:w-32 md:h-16 bg-base-300 rounded-box flex items-center justify-center">
