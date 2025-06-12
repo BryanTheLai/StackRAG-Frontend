@@ -37,7 +37,7 @@ export default function Home() {
                 Building this for you and would love your feedback!
               </p>
               <p className="mb-3">
-                Help us shape the products future to work for you:
+                Have workflows you want to automate? Feel free to contact us:
               </p>
               <a
                 href="https://mail.google.com/mail/?view=cm&fs=1&to=stackifier@gmail.com
