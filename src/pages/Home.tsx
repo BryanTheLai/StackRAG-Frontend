@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { Zap, CheckCircle } from "lucide-react";
 import tableChatScreenshot from "@/assets/table-chat-screenshot.png";
-import chartChatScreenshot from "@/assets/chart-chat-screenshot.png";
 
 export default function Home() {
   return (
@@ -49,13 +48,16 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Chart Image */}
-          <div className="w-full max-w-4xl mx-auto relative">
+          {/* Demo Video in Hero */}
+          <div className="w-full max-w-4xl mx-auto aspect-video relative">
             <div className="absolute inset-0 bg-sky-500/20 rounded-xl blur-2xl"></div>
-            <img
-              src={chartChatScreenshot || "/placeholder.svg"}
-              alt="AI CFO Chat Interface with Interactive Chart"
-              className="relative rounded-xl shadow-2xl w-full border border-slate-700/50"
+            <iframe
+              className="absolute top-0 left-0 w-full h-full rounded-xl shadow-2xl border border-slate-700/50"
+              src="https://www.youtube.com/embed/mUrNCdx-MHs"
+              title="Demo Video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
           </div>
         </div>
