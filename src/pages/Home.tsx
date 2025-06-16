@@ -53,7 +53,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-sky-500/20 rounded-xl blur-2xl"></div>
             <iframe
               className="absolute top-0 left-0 w-full h-full rounded-xl shadow-2xl border border-slate-700/50"
-              src="https://www.youtube.com/embed/mUrNCdx-MHs"
+              src="https://www.youtube.com/embed/mUrNCdx-MHs?rel=0&modestbranding=1&controls=1"
               title="Demo Video"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
