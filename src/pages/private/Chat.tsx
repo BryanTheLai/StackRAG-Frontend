@@ -19,6 +19,17 @@ import type { ChartData } from "@/types/chart";
 const CHART_OPEN_TAG = '<ChartData>';
 const CHART_CLOSE_TAG = '</ChartData>';
 
+// Define special tag structure
+interface SpecialTagConfig {
+  OPEN_TAG: string;
+  CLOSE_TAG: string;
+}
+
+// Special tags whose content should be buffered until fully received
+const SPECIAL_TAG_CONFIGS: SpecialTagConfig[] = [
+  { OPEN_TAG: CHART_OPEN_TAG, CLOSE_TAG: CHART_CLOSE_TAG },
+];
+
 // Utility to parse chart data from string
 const parseChartDataFromString = (potentialChartString: string): ChartData | null => {
   const trimmedString = potentialChartString.trim();
@@ -124,99 +135,149 @@ export default function Chat() {
     parts: [{ content: "", part_kind: "text" }],
   });
 
-  // Update streaming response in chat history
-  const updateStreamingResponse = (
-    textChunk: string,
-    accumulatedText: string
-  ) => {
-    setChatHistory((prev) => {
-      const updated = [...prev];
-      const lastMessage = updated[updated.length - 1];
-      if (lastMessage?.kind === "response") {
-        lastMessage.parts[0].content = accumulatedText + textChunk;
+  // Process incoming text chunks, buffering special-tag blocks
+  const processTextChunk = (
+    chunk: string,
+    accText: string,
+    tagBuffer: string,
+    inTag: boolean,
+    tagCfg: SpecialTagConfig | null,
+    updateUI: () => void
+  ): {
+    nextAccText: string;
+    nextTagBuffer: string;
+    nextInTag: boolean;
+    nextTagCfg: SpecialTagConfig | null;
+  } => {
+    let text = accText;
+    let buffer = tagBuffer;
+    let inside = inTag;
+    let cfg = tagCfg;
+    let rest = chunk;
+
+    while (rest) {
+      if (inside && cfg) {
+        buffer += rest;
+        const closeIdx = buffer.indexOf(cfg.CLOSE_TAG);
+        if (closeIdx !== -1) {
+          const end = closeIdx + cfg.CLOSE_TAG.length;
+          const block = buffer.slice(0, end);
+          text += block;
+          updateUI();
+          rest = buffer.slice(end);
+          buffer = "";
+          inside = false;
+          cfg = null;
+        } else {
+          rest = "";
+        }
+      } else {
+        let nextOpen = -1;
+        let found: SpecialTagConfig | null = null;
+        for (const c of SPECIAL_TAG_CONFIGS) {
+          const pos = rest.indexOf(c.OPEN_TAG);
+          if (pos >= 0 && (nextOpen < 0 || pos < nextOpen)) {
+            nextOpen = pos;
+            found = c;
+          }
+        }
+        if (found && nextOpen >= 0) {
+          const before = rest.slice(0, nextOpen);
+          if (before) {
+            text += before;
+            updateUI();
+          }
+          inside = true;
+          cfg = found;
+          buffer = rest.slice(nextOpen);
+          rest = "";
+          const closeIdx = buffer.indexOf(cfg.CLOSE_TAG);
+          if (closeIdx !== -1) {
+            const end = closeIdx + cfg.CLOSE_TAG.length;
+            const block = buffer.slice(0, end);
+            text += block;
+            updateUI();
+            rest = buffer.slice(end);
+            buffer = "";
+            inside = false;
+            cfg = null;
+          }
+        } else {
+          text += rest;
+          updateUI();
+          rest = "";
+        }
       }
-      return updated;
-    });
+    }
+
+    return { nextAccText: text, nextTagBuffer: buffer, nextInTag: inside, nextTagCfg: cfg };
   };
 
-  // Handle streaming chat response
+  // Handle streaming response, buffering special tags until closed
   const handleStreamingResponse = async (
     response: Response,
-    currentHistory: ChatMessage[]
+    initialHistory: ChatMessage[]
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
-    let accumulatedText = "";
     let buffer = "";
-
+    let text = "";
+    let tagBuffer = "";
+    let inTag = false;
+    let tagCfg: SpecialTagConfig | null = null;
+    const updateUI = () => {
+      setChatHistory((prev) => {
+        const h = [...prev];
+        const last = h[h.length - 1];
+        if (last?.kind === "response") last.parts[0].content = text;
+        return h;
+      });
+    };
+    
     try {
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         let idx;
-
         while ((idx = buffer.indexOf("\n\n")) >= 0) {
           const chunk = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
-
           if (chunk.startsWith("event: stream_end")) {
-            const finalMessage: ChatMessage = {
-              kind: "response",
-              parts: [
-                {
-                  content: accumulatedText,
-                  part_kind: "text",
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
-            const finalHistory = [...currentHistory, finalMessage];
-            setChatHistory(finalHistory);
-
-            if (chatId) {
-              await updateChatSessionHistory(chatId, finalHistory);
-            }
-            return;
+            if (inTag) text += tagBuffer;
+            break;
           }
-
           if (chunk.startsWith("data: ")) {
             try {
-              const jsonData = JSON.parse(chunk.slice(6));
-              if (jsonData.text_chunk) {
-                accumulatedText += jsonData.text_chunk;
-                updateStreamingResponse(jsonData.text_chunk, accumulatedText);
+              const d = JSON.parse(chunk.slice(6));
+              if (d.text_chunk) {
+                const result = processTextChunk(
+                  d.text_chunk,
+                  text,
+                  tagBuffer,
+                  inTag,
+                  tagCfg,
+                  updateUI
+                );
+                text = result.nextAccText;
+                tagBuffer = result.nextTagBuffer;
+                inTag = result.nextInTag;
+                tagCfg = result.nextTagCfg;
               }
-            } catch (e) {
-              console.warn("Failed to parse stream data chunk:", chunk, e);
-            }
+            } catch {}
           }
         }
+        if (buffer.includes("event: stream_end")) break;
       }
+      if (inTag) text += tagBuffer;
+      const final: ChatMessage = { kind: "response", parts: [{ content: text, part_kind: "text", timestamp: new Date().toISOString() }] };
+      const newHistory = [...initialHistory, final];
 
-      // Handle abrupt stream end
-      if (accumulatedText) {
-        const finalMessage: ChatMessage = {
-          kind: "response",
-          parts: [
-            {
-              content: accumulatedText,
-              part_kind: "text",
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-        const finalHistory = [...currentHistory, finalMessage];
-        setChatHistory(finalHistory);
-
-        if (chatId) {
-          await updateChatSessionHistory(chatId, finalHistory);
-        }
-      }
-    } catch (error) {
-      console.error("Stream reading error:", error);
-      throw error;
+      setChatHistory(newHistory);
+      if (chatId) await updateChatSessionHistory(chatId, newHistory);
+    } catch (e) {
+      setChatHistory((prev) => prev.length > initialHistory.length && prev[prev.length - 1].parts[0].content === "" ? initialHistory : prev);
+      throw e;
     }
   };
 
