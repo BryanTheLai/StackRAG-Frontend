@@ -118,16 +118,16 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
 
   return (
     <div
-      className={`h-screen bg-base-100 flex flex-col justify-between border-r border-base-300 transition-width duration-200 ${
+      className={`h-screen flex flex-col justify-between border-r border-base-300 transition-width duration-200 ${
         collapsed ? "w-16" : "w-60"
-      }`}
+      } bg-base-100 text-base-content`}
     >
       {/* Top section: toggle and nav */}
       <div>
         <div className="p-2 flex justify-end">
           <button
             onClick={() => setCollapsed((v) => !v)}
-            className="btn btn-square btn-ghost"
+            className="btn btn-square btn-ghost text-base-content"
             aria-label="Toggle sidebar"
           >
             <ToggleIcon className="h-6 w-6" />
@@ -140,7 +140,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                 <div key={label} className="relative">
                   <button
                     onClick={() => setShowChatHistoryDropdown((v) => !v)}
-                    className={`px-3 py-2 rounded font-medium transition w-full flex justify-between items-center text-left ${getNavClass(
+                    className={`px-3 py-2 rounded-box font-medium transition w-full flex justify-between items-center text-left ${getNavClass(
                       location === link || showChatHistoryDropdown
                     )}`}
                   >
@@ -168,7 +168,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                           <Link
                             key={session.id}
                             href={`/private/chat/${session.id}`}
-                            className={`block px-3 py-1 rounded text-sm transition ${
+                            className={`block px-3 py-1 rounded-box text-sm transition ${
                               location === `/private/chat/${session.id}`
                                 ? "bg-primary/20 text-primary font-semibold"
                                 : "text-base-content/80 hover:bg-base-200 hover:text-base-content"
@@ -184,7 +184,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                       {!chatHistoryError && (
                         <Link
                           href="/private/chathistory"
-                          className="block px-3 py-1 rounded text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content font-medium"
+                          className="block px-3 py-1 rounded-box text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content font-medium"
                           onClick={() => setShowChatHistoryDropdown(false)} // Close dropdown on link click
                         >
                           View all...
@@ -197,7 +197,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                 <Link
                   key={label}
                   href={link}
-                  className={`px-3 py-2 rounded font-medium transition w-full text-left ${getNavClass(
+                  className={`px-3 py-2 rounded-box font-medium transition w-full text-left ${getNavClass(
                     location === link
                   )}`}
                 >
@@ -225,9 +225,9 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
             />
             <label
               htmlFor="file-upload"
-              className={`btn btn-primary w-full ${
+              className={`btn btn-outline btn-primary w-full ${
                 isProcessing ? "cursor-not-allowed opacity-70" : ""
-              }`}
+              } bg-base-100 text-base-content border-base-300`}
             >
               {isProcessing ? (
                 <>
@@ -242,7 +242,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
             {results.length > 0 && (
               <ul className="mt-2 space-y-2 max-h-40 overflow-y-auto">
                 {results.map(({ file, status, error }, i) => (
-                  <li key={i} className="flex items-center min-w-0">
+                  <li key={i} className="flex items-center min-w-0 bg-base-100 text-base-content">
                     <span
                       title={file.name}
                       className="flex-1 text-sm truncate mr-2"
@@ -251,11 +251,11 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
                     </span>
                     <div className="w-5 flex justify-center">
                       {status === "success" && (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <CheckCircle className="h-5 w-5 text-success" />
                       )}
                       {status === "error" && (
                         <div title={error} className="w-5 flex justify-center">
-                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                          <AlertTriangle className="h-5 w-5 text-error" />
                         </div>
                       )}
                     </div>
@@ -266,11 +266,11 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
           </div>
 
           <div className="p-4">
-            <p className="text-sm text-neutral-content mb-1">Signed in as</p>
-            <p className="font-medium mb-3">{user?.email}</p>
+            <p className="signed-in-as text-base-content/70">Signed in as</p>
+            <p className="font-medium mb-3 text-base-content">{user?.email}</p>
             <button
               onClick={() => void signOut()}
-              className="btn btn-secondary w-full"
+              className="btn btn-outline btn-error w-full border-base-300 bg-base-100 text-error"
             >
               Logout
             </button>

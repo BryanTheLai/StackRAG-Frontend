@@ -401,19 +401,21 @@ export default function Chat() {
   // Render a single chat message
   const renderMessage = (msg: ChatMessage, index: number) => {
     const isUser = msg.kind === "request";
-    // Determine bubble class based on user, error, or normal AI response
+    // Minimalistic bubble classes using DaisyUI variables for consistency
     const bubbleClass = isUser
-      ? "chat-bubble-primary"
+      ? "bg-base-200 text-base-content border border-base-300"
       : msg.parts.some((part) => part.content.startsWith("Error:"))
-      ? "chat-bubble-error"
-      : "chat-bubble-neutral";
+      ? "bg-error/10 text-error border border-error"
+      : "bg-base-100 text-base-content border border-base-200";
 
-    // Determine chat alignment based on user or AI
-    const chatAlignment = isUser ? "chat-end" : "chat-start";
+    const chatAlignment = isUser ? "justify-end" : "justify-start";
 
     return (
-      <div key={index} className={`chat ${chatAlignment}`}>
-        <div className={`chat-bubble ${bubbleClass} max-w-full`}> {/* Removed 'prose' class */}
+      <div key={index} className={`flex ${chatAlignment}`}>
+        <div
+          className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none ${bubbleClass}`}
+          style={{ fontSize: "1rem", lineHeight: "1.5" }}
+        >
           {msg.parts.map((part, partIndex) => {
             const decodedContent = decodeHtmlEntities(part.content); // Decode content
             // Split content by chart tags
@@ -424,21 +426,25 @@ export default function Chat() {
 
               if (chartData) {
                 // If chartData is not null, it's a valid chart block
-                return <ChartComponent key={`${partIndex}-${contentPartIndex}`} data={chartData} />;
+                return (
+                  <div key={`${partIndex}-${contentPartIndex}-chart`} className="w-full">
+                    <ChartComponent data={chartData} />
+                  </div>
+                );
               } else {
                 // Otherwise, render as Markdown
-                // Wrap ReactMarkdown with a div having the 'prose' class
                 return (
-                  <div className="prose" key={`${partIndex}-${contentPartIndex}-prose-wrapper`}>                    <ReactMarkdown
+                  <div className="prose prose-neutral" key={`${partIndex}-${contentPartIndex}-prose-wrapper`}>
+                    <ReactMarkdown
                       key={`${partIndex}-${contentPartIndex}`}
                       remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={{
-                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-500" />,
-                        table: ({node, ...props}) => <table {...props} className="table-auto border-collapse border border-slate-400 w-full my-4" />,
-                        thead: ({node, ...props}) => <thead {...props} className="bg-slate-100 dark:bg-slate-700" />,
-                        th: ({node, ...props}) => <th {...props} className="border border-slate-300 dark:border-slate-600 font-semibold p-2 text-slate-900 dark:text-slate-200 text-left" />,
-                        td: ({node, ...props}) => <td {...props} className="border border-slate-300 dark:border-slate-700 p-2 text-slate-500 dark:text-slate-400" />,
-                        tr: ({node, ...props}) => <tr {...props} className="even:bg-slate-50 dark:even:bg-slate-800" />
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-focus" />,
+                        table: ({node, ...props}) => <table {...props} className="w-full border border-base-300 my-4 bg-base-100 text-sm" />,
+                        thead: ({node, ...props}) => <thead {...props} className="" />,
+                        th: ({node, ...props}) => <th {...props} className="border border-base-300 font-semibold p-2 text-left bg-base-100 text-base-content" />,
+                        td: ({node, ...props}) => <td {...props} className="border border-base-200 p-2 text-base-content/80" />,
+                        tr: ({node, ...props}) => <tr {...props} className="" />
                       }}
                     >
                       {contentPart}
@@ -467,10 +473,10 @@ export default function Chat() {
     if (isLoadingChat || error) return null;
 
     return (
-      <div className="p-4 border-t border-base-300 bg-base-100">
+      <div className="p-4 border-t border-base-200 bg-base-100">
         <div className="flex items-center gap-2">
           <textarea
-            className="textarea textarea-bordered flex-1 resize-none"
+            className="textarea textarea-bordered flex-1 resize-none bg-base-100 text-base-content border-base-300"
             rows={1}
             placeholder="Type your message..."
             value={inputMessage}
@@ -494,11 +500,11 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-screen bg-base-200 text-base-content">
+    <div className="flex h-screen bg-base-100 text-base-content">
       <Sidebar />
       <main className="flex-1 flex flex-col max-h-screen">
         {/* Header */}
-        <div className="bg-base-100 shadow-sm p-3 px-4 border-b border-base-300 flex items-center justify-between">
+        <div className="bg-base-100 p-3 px-4 border-b border-base-200 flex items-center justify-between">
           <div className="flex items-center">
             <Link
               href="/private/chathistory"
@@ -518,7 +524,7 @@ export default function Chat() {
         {/* Chat Display Area */}
         <div
           ref={chatDisplayRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200/50"
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
         >
           {renderChatContent()}
         </div>

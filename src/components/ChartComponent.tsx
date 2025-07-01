@@ -9,35 +9,42 @@ interface ChartComponentProps {
   data: ChartData;
 }
 
-// Chart styling configuration - consider theming these with DaisyUI/Tailwind variables if possible
+// Chart styling configuration - now using DaisyUI/Tailwind CSS variables for Stripe-level consistency
 const CHART_COLORS = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
-  '#82CA9D', '#A4DE6C', '#D0ED57', '#FFC658'
+  'var(--color-primary)',
+  'var(--color-secondary)',
+  'var(--color-accent)',
+  'var(--color-info)',
+  'var(--color-success)',
+  'var(--color-warning)',
+  'var(--color-error)',
+  'var(--color-neutral)',
+  'var(--color-base-300)'
 ];
 
 // Adjusted styling for better dark mode visibility
 const CHART_STYLES = {
   tooltip: {
     contentStyle: {
-      backgroundColor: 'rgba(55, 65, 81, 0.95)', // Dark semi-transparent background (e.g., Tailwind gray-700)
-      color: '#F3F4F6', // Light text (e.g., Tailwind gray-100)
-      border: '1px solid #4B5563', // Subtle border (e.g., Tailwind gray-600)
-      borderRadius: '0.5rem',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' // Adding a subtle shadow
+      backgroundColor: 'var(--color-base-200)',
+      color: 'var(--color-base-content)',
+      border: '1px solid var(--color-base-300)',
+      borderRadius: 'var(--rounded-box)',
+      boxShadow: '0 4px 6px -1px var(--color-neutral), 0 2px 4px -1px var(--color-neutral)' // subtle shadow
     },
-    labelStyle: { color: '#E5E7EB', fontWeight: 'bold' as 'bold' }, // Light gray, bold for category names
-    itemStyle: { color: '#D1D5DB' }, // Lighter gray for item text
+    labelStyle: { color: 'var(--color-primary-content)', fontWeight: 'bold' as 'bold' },
+    itemStyle: { color: 'var(--color-base-content)' },
   },
   legend: {
-    wrapperStyle: { color: '#D1D5DB', paddingTop: '10px' }, // Light gray text (e.g., Tailwind gray-300)
+    wrapperStyle: { color: 'var(--color-base-content)', paddingTop: '10px' },
   },
   axis: {
-    stroke: "#9CA3AF", // Medium gray for axis lines (e.g., Tailwind gray-400)
-    tick: { fill: '#D1D5DB' }, // Light gray for axis text/ticks (e.g., Tailwind gray-300)
+    stroke: 'var(--color-base-300)',
+    tick: { fill: 'var(--color-base-content)' },
   },
   grid: {
-    strokeDasharray: "3 3",
-    stroke: "#4B5563", // Darker, subtle grid lines (e.g., Tailwind gray-600)
+    strokeDasharray: '3 3',
+    stroke: 'var(--color-base-200)',
   },
 };
 
@@ -159,13 +166,13 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
   };
 
   return (
-    <div className="my-4 bg-base-300 p-4 rounded-lg shadow-xl">
-      {data.title && <h3 className="text-lg font-semibold mb-2 text-center">{data.title}</h3>}
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="my-6 bg-base-100 p-6 rounded-box shadow-md border border-base-200">
+      {data.title && <h3 className="text-lg font-semibold mb-4 text-center text-base-content tracking-tight">{data.title}</h3>}
+      <ResponsiveContainer width="100%" height={320}>
         {renderChart()}
       </ResponsiveContainer>
       {data.metadata && (
-        <div className="mt-2 text-xs text-base-content/70 flex flex-wrap justify-center gap-x-4 gap-y-1">
+        <div className="mt-3 text-xs text-base-content flex flex-wrap justify-center gap-x-6 gap-y-1 border-t border-base-200 pt-2">
           {data.metadata.currency && <span>Currency: {data.metadata.currency}</span>}
           {data.metadata.period && <span>Period: {data.metadata.period}</span>}
           {data.metadata.unit && <span>Unit: {data.metadata.unit}</span>}
