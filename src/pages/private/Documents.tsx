@@ -18,7 +18,7 @@ export default function Documents() {
   const [docs, setDocs] = useState<DocumentData[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [previewContent, setPreviewContent] = useState<string>("");
+  const [previewContent] = useState<string>("");
 
   // Delete functionality state
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string>("");
@@ -106,10 +106,6 @@ export default function Documents() {
     setDocIdToDelete(null);
   };
 
-  const handleOpenPreview = (markdownContent: string) => {
-    setPreviewContent(markdownContent);
-    setShowPreview(true);
-  };
 
   // Handler to view PDF
   const handleViewPdf = async (storagePath: string, filename: string) => {
