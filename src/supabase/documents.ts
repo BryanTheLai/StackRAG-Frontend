@@ -11,6 +11,7 @@ export interface DocumentData {
   doc_specific_type: string;
   doc_summary: string;
   full_markdown_content: string;
+  storage_path: string; // Path in supabase storage for PDF file
 }
 
 // Legacy interface for backward compatibility
@@ -28,7 +29,7 @@ export async function fetchDocuments(
   const query = supabase
     .from("documents")
     .select(
-      "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content"
+      "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content, storage_path"
     )
     .order("upload_timestamp", { ascending: false });
 

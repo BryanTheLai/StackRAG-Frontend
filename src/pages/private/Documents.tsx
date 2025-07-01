@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { useSearch, Link } from "wouter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
+import { supabase } from "@/supabase/client";
+// Removed react-pdf imports and worker config
 import {
   type DocumentData,
   fetchDocuments,
@@ -10,6 +11,7 @@ import {
   getStatusBadgeClass,
 } from "@/supabase/documents";
 import Sidebar from "@/components/Sidebar";
+import { Eye, Download, Trash2, X } from "lucide-react";
 
 export default function Documents() {
   // State management
@@ -34,6 +36,13 @@ export default function Documents() {
 
   // New state for refresh flag
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
+
+  // PDF viewer state
+  const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [pdfLoading, setPdfLoading] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string>("");
+  const [pdfFilename, setPdfFilename] = useState<string>("");
 
   // Callback to refresh documents after import
   const handleFilesImported = (_files: File[]) => {
@@ -100,6 +109,70 @@ export default function Documents() {
   const handleOpenPreview = (markdownContent: string) => {
     setPreviewContent(markdownContent);
     setShowPreview(true);
+  };
+
+  // Handler to view PDF
+  const handleViewPdf = async (storagePath: string, filename: string) => {
+    setPdfLoading(true);
+    setPdfError("");
+    setPdfFilename(filename);
+    try {
+      // Download PDF blob and create object URL with correct MIME
+      const { data: fileData, error } = await supabase.storage
+        .from('financial-pdfs')
+        .download(storagePath);
+      if (error || !fileData) throw error || new Error('No file returned');
+      // Convert blob to base64 data URI
+      const arrayBuffer = await fileData.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      const url = `data:application/pdf;base64,${base64}`;
+      setPdfUrl(url);
+      setShowPdfViewer(true);
+    } catch (err: any) {
+      console.error('Error loading PDF:', err);
+      setPdfError(err.message || 'Failed to load PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Download PDF handler
+  const handleDownloadPdf = async (storagePath: string, filename: string) => {
+    try {
+      const { data: fileData, error } = await supabase.storage
+        .from('financial-pdfs')
+        .download(storagePath);
+      if (error || !fileData) throw error || new Error('No file returned');
+      const blob = new Blob([await fileData.arrayBuffer()], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (err: any) {
+      console.error('Error downloading PDF:', err);
+      setPdfError('Failed to download PDF');
+    }
+  };
+
+  // Close PDF viewer and revoke object URL
+  const closePdfViewer = () => {
+    setShowPdfViewer(false);
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl("");
+    }
+    setPdfFilename("");
   };
 
   // Render helper components
@@ -189,15 +262,10 @@ export default function Documents() {
     <thead className="bg-base-300">
       <tr>
         <th className="text-base-content border-r border-base-300">No.</th>
-        <th className="text-base-content border-r border-base-300">
-          File Name
-        </th>
-        <th className="text-base-content border-r border-base-300">
-          Upload Time
-        </th>
-        <th className="text-base-content border-r border-base-300 max-w-xs truncate">
-          Doc Summary
-        </th>
+        <th className="text-base-content border-r border-base-300">File Name</th>
+        <th className="text-base-content border-r border-base-300">Upload Time</th>
+        <th className="text-base-content border-r border-base-300">Type</th>
+        <th className="text-base-content border-r border-base-300 max-w-xs truncate">Doc Summary</th>
         <th className="text-base-content border-r border-base-300">Status</th>
         <th className="text-base-content">Actions</th>
       </tr>
@@ -239,22 +307,16 @@ export default function Documents() {
   const renderDocumentRow = (doc: DocumentData, index: number) => (
     <tr key={doc.id} className="hover:bg-base-200 border-b border-base-300">
       <td className="font-medium border-r border-base-300">{index + 1}</td>
-      <td className="border-r border-base-300">
-        <button
-          className="btn btn-link btn-xs p-0 text-info hover:text-info-content"
-          onClick={() => handleOpenPreview(doc.full_markdown_content)}
-        >
-          {doc.filename}
-        </button>
-      </td>
-      <td className="text-sm whitespace-nowrap border-r border-base-300">
-        {new Date(doc.upload_timestamp).toLocaleString()}
-      </td>
-      <td
-        className="text-sm max-w-xs truncate border-r border-base-300"
-        title={doc.doc_summary}
-      >
+      <td className="border-r border-base-300">{doc.filename}</td>
+      <td className="text-sm whitespace-nowrap border-r border-base-300">{new Date(doc.upload_timestamp).toLocaleString()}</td>
+      <td className="text-sm border-r border-base-300">{doc.doc_specific_type}</td>
+      <td className="text-sm max-w-xs truncate border-r border-base-300 relative group" title={doc.doc_summary}>
         {doc.doc_summary}
+        {doc.doc_summary && (
+          <span className="absolute left-1/2 z-50 hidden group-hover:flex -translate-x-1/2 mt-2 px-3 py-2 rounded shadow-lg bg-base-200 text-base-content text-xs whitespace-pre-line max-w-xs border border-base-300">
+            {doc.doc_summary}
+          </span>
+        )}
       </td>
       <td className="border-r border-base-300">
         <span className={`badge ${getStatusBadgeClass(doc.status)} badge-sm`}>
@@ -263,10 +325,28 @@ export default function Documents() {
       </td>
       <td>
         <button
+          onClick={() => handleViewPdf(doc.storage_path, doc.filename)}
+          className="btn btn-primary btn-sm btn-outline mr-2"
+          aria-label="View PDF"
+          title="View PDF"
+        >
+          <Eye size={18} />
+        </button>
+        <button
+          onClick={() => handleDownloadPdf(doc.storage_path, doc.filename)}
+          className="btn btn-secondary btn-sm btn-outline mr-2"
+          aria-label="Download"
+          title="Download"
+        >
+          <Download size={18} />
+        </button>
+        <button
           onClick={() => handleDeleteInitiate(doc.id)}
           className="btn btn-error btn-sm btn-outline"
+          aria-label="Delete"
+          title="Delete"
         >
-          Delete
+          <Trash2 size={18} />
         </button>
       </td>
     </tr>
@@ -349,6 +429,53 @@ export default function Documents() {
       </div>
 
       {renderPreviewPanel()}
+      {showPdfViewer && (
+        <div className="fixed top-0 right-0 h-full w-1/2 max-w-3xl bg-base-100 border-l shadow-lg z-50 flex flex-col">
+          <div className="flex items-center justify-between p-2 border-b">
+            <span className="font-mono text-base font-semibold truncate" title={pdfFilename}>{pdfFilename}</span>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => handleDownloadPdf(docs.find(d => d.filename === pdfFilename)?.storage_path || '', pdfFilename)}
+                disabled={pdfLoading || !pdfFilename}
+                aria-label="Download"
+                title="Download"
+              >
+                <Download size={18} />
+              </button>
+              <button
+                className="btn btn-sm btn-circle"
+                onClick={closePdfViewer}
+                aria-label="Close"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 p-2">
+            {pdfLoading && (
+              <div className="flex justify-center items-center h-full">
+                <span className="loading loading-spinner loading-lg"></span>
+              </div>
+            )}
+            {pdfError && (
+              <div className="alert alert-error shadow-lg">
+                <div><span>{pdfError}</span></div>
+              </div>
+            )}
+            {pdfUrl && !pdfLoading && !pdfError && (
+              <embed
+                src={pdfUrl}
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                className="flex-1"
+              />
+            )}
+          </div>
+        </div>
+      )}
       {renderDeleteModal()}
     </div>
   );
