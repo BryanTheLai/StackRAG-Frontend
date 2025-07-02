@@ -14,6 +14,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ChartComponent } from "@/components/ChartComponent";
 import type { ChartData } from "@/types/chart";
+import { TypingDots } from "@/components/TypingDots";
 
 // Constants for chart processing
 const CHART_OPEN_TAG = '<ChartData>';
@@ -69,6 +70,7 @@ export default function Chat() {
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const [chatTitle, setChatTitle] = useState<string | null>("Chat");
   const [error, setError] = useState<string | null>(null);
+  const [lastQuery, setLastQuery] = useState<string>("");
 
   // UI refs
   const chatDisplayRef = useRef<HTMLDivElement>(null);
@@ -312,6 +314,7 @@ export default function Chat() {
     if (!inputMessage.trim() || isStreaming || !session) return;
 
     const content = inputMessage.trim();
+    setLastQuery(content);
     const userMessage = createUserMessage(content);
     const placeholder = createPlaceholderMessage();
     const currentHistory = [...chatHistory, userMessage];
@@ -401,6 +404,7 @@ export default function Chat() {
   // Render a single chat message
   const renderMessage = (msg: ChatMessage, index: number) => {
     const isUser = msg.kind === "request";
+    const isPlaceholder = !isUser && msg.parts[0].content === "" && isStreaming && index === chatHistory.length - 1;
     // Minimalistic bubble classes using DaisyUI variables for consistency
     const bubbleClass = isUser
       ? "bg-base-200 text-base-content border border-base-300"
@@ -409,6 +413,20 @@ export default function Chat() {
       : "bg-base-100 text-base-content border border-base-200";
 
     const chatAlignment = isUser ? "justify-end" : "justify-start";
+
+    if (isPlaceholder) {
+      return (
+        <div key={index} className={`flex ${chatAlignment}`}>
+          <div className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none ${bubbleClass}`}>            
+            <div className="flex items-center gap-2 mb-2">
+              <span className="badge badge-outline capitalize">{lastQuery}</span>
+              <span className="text-sm text-base-content/60">Searching...</span>
+            </div>
+            <TypingDots />
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div key={index} className={`flex ${chatAlignment}`}>
@@ -461,11 +479,11 @@ export default function Chat() {
 
   // Render chat display area content
   const renderChatContent = () => {
-    if (isLoadingChat) return renderChatLoading();
-    if (error) return renderError();
-    if (chatHistory.length === 0 && !chatId) return renderNewChatEmpty();
-    if (chatHistory.length === 0 && chatId) return renderExistingChatEmpty();
-    return chatHistory.map(renderMessage);
+     if (isLoadingChat) return renderChatLoading();
+     if (error) return renderError();
+     if (chatHistory.length === 0 && !chatId) return renderNewChatEmpty();
+     if (chatHistory.length === 0 && chatId) return renderExistingChatEmpty();
+     return chatHistory.map(renderMessage);
   };
 
   // Render input area
