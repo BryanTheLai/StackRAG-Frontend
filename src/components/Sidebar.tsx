@@ -26,6 +26,7 @@ interface FileResult {
 const links = [
   { link: "/private/dashboard", label: "Dashboard" },
   { link: "/private/documents", label: "Documents" },
+  { link: "/private/profile", label: "Profile" },
   { link: "/private/chathistory", label: "Chat History" },
 ];
 
@@ -242,7 +243,10 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
             {results.length > 0 && (
               <ul className="mt-2 space-y-2 max-h-40 overflow-y-auto">
                 {results.map(({ file, status, error }, i) => (
-                  <li key={i} className="flex items-center min-w-0 bg-base-100 text-base-content">
+                  <li
+                    key={i}
+                    className="flex items-center min-w-0 bg-base-100 text-base-content"
+                  >
                     <span
                       title={file.name}
                       className="flex-1 text-sm truncate mr-2"

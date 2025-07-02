@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import Documents from "./pages/private/Documents";
 import Chat from "./pages/private/Chat";
 import ChatHistoryPage from "./pages/private/ChatHistory"; // Corrected import path
+import ProfilePage from "@/pages/private/Profile";
 
 export default function App() {
   return (
@@ -36,6 +37,11 @@ export default function App() {
             <Route path="/private/chathistory">
               <PrivateRoute>
                 <ChatHistoryPage />
+              </PrivateRoute>
+            </Route>
+            <Route path="/private/profile">
+              <PrivateRoute>
+                <ProfilePage />
               </PrivateRoute>
             </Route>
             <Route path="*">
