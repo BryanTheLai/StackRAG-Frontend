@@ -49,7 +49,7 @@ export default function Home() {
           </div>
 
           {/* Demo Video in Hero */}
-          <div className="w-full max-w-4xl mx-auto aspect-video relative">
+          {/* <div className="w-full max-w-4xl mx-auto aspect-video relative">
             <div className="absolute inset-0 bg-primary/10 rounded-xl blur-2xl"></div>
             <iframe
               className="absolute top-0 left-0 w-full h-full rounded-xl shadow-2xl border border-base-content/30"
@@ -59,7 +59,7 @@ export default function Home() {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
-          </div>
+          </div> */}
         </div>
       </section>
 
