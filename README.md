@@ -11,6 +11,8 @@
 
 *A responsive, secure, and real-time frontend for the Stackifier AI platform, built with modern web technologies.*
 
+**Backend Source**: [StackRAG-Backend](https://github.com/BryanTheLai/StackRAG-Backend)
+
 <!-- Demo Screenshots -->
 <p align="center">
   <img src="public/Documents.png" alt="Documents List" width="400" />
