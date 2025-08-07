@@ -11,6 +11,17 @@
 
 *A responsive, secure, and real-time frontend for the Stackifier AI platform, built with modern web technologies.*
 
+<!-- Demo Screenshots -->
+<p align="center">
+  <img src="public/Documents.png" alt="Documents List" width="400" />
+  <img src="public/Dashboard.png" alt="Dashboard View" width="400" />
+</p>
+<p align="center">
+  <img src="public/Chat2.png" alt="Chat Interface - Part 2" width="400" />
+    <img src="public/PDF.png" alt="Import PDF Screen" width="400" />
+
+</p>
+
 [Quick Start](#-quick-start) • [Architecture](#-architecture--data-flow) • [Key Patterns](#-key-architectural-patterns) • [Project Structure](#-project-structure)
 
 </div>
