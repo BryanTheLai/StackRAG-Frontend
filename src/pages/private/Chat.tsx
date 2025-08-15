@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
-import { Send, MessageSquare, ArrowLeft } from "lucide-react";
+import { Send, MessageSquare, ArrowLeft, X } from "lucide-react";
 import { ENDPOINTS } from "@/config/api";
 import { useRoute, Link } from "wouter";
 import type { ChatMessage } from "@/supabase/chatService";
@@ -14,11 +14,17 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ChartComponent } from "@/components/ChartComponent";
 import type { ChartData } from "@/types/chart";
+import { PDFViewerEmbedded } from "@/components/PDFViewerEmbedded";
+import type { PDFNavData } from "@/types/pdfnav";
 import { TypingDots } from "@/components/TypingDots";
 
 // Constants for chart processing
 const CHART_OPEN_TAG = '<ChartData>';
 const CHART_CLOSE_TAG = '</ChartData>';
+
+// Constants for PDF navigation processing
+const PDF_NAV_OPEN_TAG = '<PDFNav>';
+const PDF_NAV_CLOSE_TAG = '</PDFNav>';
 
 // Define special tag structure
 interface SpecialTagConfig {
@@ -29,6 +35,7 @@ interface SpecialTagConfig {
 // Special tags whose content should be buffered until fully received
 const SPECIAL_TAG_CONFIGS: SpecialTagConfig[] = [
   { OPEN_TAG: CHART_OPEN_TAG, CLOSE_TAG: CHART_CLOSE_TAG },
+  { OPEN_TAG: PDF_NAV_OPEN_TAG, CLOSE_TAG: PDF_NAV_CLOSE_TAG },
 ];
 
 // Utility to parse chart data from string
@@ -40,7 +47,23 @@ const parseChartDataFromString = (potentialChartString: string): ChartData | nul
       const jsonString = trimmedString.slice(CHART_OPEN_TAG.length, -CHART_CLOSE_TAG.length);
       return JSON.parse(jsonString);
     } catch (error) {
-      console.error('Failed to parse chart JSON:', error, '\\nOriginal string part:', potentialChartString);
+      console.error('Failed to parse chart JSON:', error, '\nOriginal string part:', potentialChartString);
+      return null;
+    }
+  }
+  return null;
+};
+
+// Utility to parse PDF navigation data from string
+const parsePDFNavDataFromString = (potentialPDFNavString: string): PDFNavData | null => {
+  const trimmedString = potentialPDFNavString.trim();
+  if (trimmedString.startsWith(PDF_NAV_OPEN_TAG) && trimmedString.endsWith(PDF_NAV_CLOSE_TAG)) {
+    try {
+      // Extract JSON string from between the tags
+      const jsonString = trimmedString.slice(PDF_NAV_OPEN_TAG.length, -PDF_NAV_CLOSE_TAG.length);
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse PDF navigation JSON:', error, '\nOriginal string part:', potentialPDFNavString);
       return null;
     }
   }
@@ -71,6 +94,10 @@ export default function Chat() {
   const [chatTitle, setChatTitle] = useState<string | null>("Chat");
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
+
+  // PDF viewer state
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [selectedPDFData, setSelectedPDFData] = useState<PDFNavData | null>(null);
 
   // UI refs
   const chatDisplayRef = useRef<HTMLDivElement>(null);
@@ -436,17 +463,45 @@ export default function Chat() {
         >
           {msg.parts.map((part, partIndex) => {
             const decodedContent = decodeHtmlEntities(part.content); // Decode content
-            // Split content by chart tags
-            const contentParts = decodedContent.split(new RegExp(`(${CHART_OPEN_TAG}[\\s\\S]*?${CHART_CLOSE_TAG})`, 'g')).filter(Boolean);
+            // Split content by both chart and PDF nav tags
+            const contentParts = decodedContent.split(new RegExp(`(${CHART_OPEN_TAG}[\\s\\S]*?${CHART_CLOSE_TAG}|${PDF_NAV_OPEN_TAG}[\\s\\S]*?${PDF_NAV_CLOSE_TAG})`, 'g')).filter(Boolean);
 
             return contentParts.map((contentPart, contentPartIndex) => {
-              const chartData = parseChartDataFromString(contentPart); // Try to parse the content part as chart data
+              const chartData = parseChartDataFromString(contentPart); // Try to parse as chart data
+              const pdfNavData = parsePDFNavDataFromString(contentPart); // Try to parse as PDF nav data
 
               if (chartData) {
                 // If chartData is not null, it's a valid chart block
                 return (
                   <div key={`${partIndex}-${contentPartIndex}-chart`} className="w-full">
                     <ChartComponent data={chartData} />
+                  </div>
+                );
+              } else if (pdfNavData) {
+                // If pdfNavData is not null, it's a valid PDF navigation block
+                return (
+                  <div key={`${partIndex}-${contentPartIndex}-pdfnav`} className="my-3">
+                    <button
+                      onClick={() => {
+                        setSelectedPDFData(pdfNavData);
+                        setShowPDFViewer(true);
+                      }}
+                      className="btn btn-outline btn-sm gap-2 hover:btn-primary"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                      </svg>
+                      {pdfNavData.filename} - Page {pdfNavData.page}
+                    </button>
+                    {pdfNavData.context && (
+                      <p className="text-sm text-base-content/70 mt-2 italic">
+                        {pdfNavData.context}
+                      </p>
+                    )}
                   </div>
                 );
               } else {
@@ -492,6 +547,66 @@ export default function Chat() {
 
     return (
       <div className="p-4 border-t border-base-200 bg-base-100">
+        {/* Test PDF Navigation Button */}
+        <div className="mb-4 p-3 bg-info/10 border border-info/20 rounded-lg">
+          <p className="text-sm text-info font-medium mb-2">🧪 Test PDF Navigation:</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                const testPDFData: PDFNavData = {
+                  documentId: "8a63bd0e-64b8-41f4-92c1-a819d9d0f743",
+                  filename: "Test_Document.pdf",
+                  page: 1,
+                  context: "Testing PDF navigation functionality with real document",
+                  highlight: {
+                    text: "This is a test highlight to verify the feature works correctly"
+                  }
+                };
+                setSelectedPDFData(testPDFData);
+                setShowPDFViewer(true);
+              }}
+              className="btn btn-info btn-sm"
+            >
+              📄 Direct PDF Test
+            </button>
+            
+            <button
+              onClick={() => {
+                const testMessage: ChatMessage = {
+                  kind: "response",
+                  parts: [{
+                    content: `Based on your financial analysis, here are the key findings:
+
+## Revenue Analysis Summary
+
+The quarterly revenue shows significant growth. Here's the detailed breakdown:
+
+<PDFNav>
+{
+  "documentId": "8a63bd0e-64b8-41f4-92c1-a819d9d0f743",
+  "filename": "Financial_Analysis_Report.pdf",
+  "page": 1,
+  "context": "This page contains the comprehensive revenue analysis and growth metrics for Q4",
+  "highlight": {
+    "text": "Revenue increased by 23% compared to previous quarter"
+  }
+}
+</PDFNav>
+
+The analysis shows strong performance across all sectors. Additional details can be found in the referenced document above.`,
+                    part_kind: "text",
+                    timestamp: new Date().toISOString()
+                  }]
+                };
+                setChatHistory(prev => [...prev, testMessage]);
+              }}
+              className="btn btn-success btn-sm"
+            >
+              💬 Simulate AI Response
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           <textarea
             className="textarea textarea-bordered flex-1 resize-none bg-base-100 text-base-content border-base-300"
@@ -520,7 +635,7 @@ export default function Chat() {
   return (
     <div className="flex h-screen bg-base-100 text-base-content">
       <Sidebar />
-      <main className="flex-1 flex flex-col max-h-screen">
+      <main className={`flex-1 flex flex-col max-h-screen ${showPDFViewer ? 'w-1/2' : ''}`}>
         {/* Header */}
         <div className="bg-base-100 p-3 px-4 border-b border-base-200 flex items-center justify-between">
           <div className="flex items-center">
@@ -550,6 +665,49 @@ export default function Chat() {
         {/* Input Area */}
         {renderInputArea()}
       </main>
+
+      {/* PDF Viewer Side Panel */}
+      {showPDFViewer && selectedPDFData && (
+        <div className="w-1/2 max-w-3xl bg-base-100 border-l border-base-300 shadow-lg flex flex-col">
+          {/* PDF Header */}
+          <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-200">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-base-content truncate">
+                {selectedPDFData.filename}
+              </h3>
+              {selectedPDFData.context && (
+                <p className="text-sm text-base-content/70 mt-1">{selectedPDFData.context}</p>
+              )}
+              {selectedPDFData.page > 1 && (
+                <p className="text-sm text-primary mt-1">Page {selectedPDFData.page}</p>
+              )}
+              {selectedPDFData.highlight?.text && (
+                <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded text-sm">
+                  <span className="text-warning font-medium">Highlighted: </span>
+                  <span className="text-base-content/80">"{selectedPDFData.highlight.text}"</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setShowPDFViewer(false);
+                setSelectedPDFData(null);
+              }}
+              className="btn btn-ghost btn-sm btn-circle ml-4"
+              aria-label="Close PDF viewer"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* PDF Content */}
+          <PDFViewerEmbedded
+            documentId={selectedPDFData.documentId}
+            filename={selectedPDFData.filename}
+            initialPage={selectedPDFData.page}
+          />
+        </div>
+      )}
     </div>
   );
 }
