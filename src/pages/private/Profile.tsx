@@ -124,14 +124,14 @@ export default function ProfilePage() {
               />
             </div>
             {/* App Settings Display */}
-            {profile.app_settings && (
+            {/* {profile.app_settings && (
               <div>
                 <span className="font-semibold">Settings:</span>{" "}
                 <pre className="whitespace-pre-wrap text-sm">
                   {JSON.stringify(profile.app_settings, null, 2)}
                 </pre>
               </div>
-            )}
+            )} */}
             {/* Timestamps */}
             <div className="text-sm text-base-content/70">
               <div>Created: {new Date(profile.created_at).toLocaleString()}</div>

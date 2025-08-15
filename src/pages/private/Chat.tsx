@@ -547,66 +547,6 @@ export default function Chat() {
 
     return (
       <div className="p-4 border-t border-base-200 bg-base-100">
-        {/* Test PDF Navigation Button */}
-        <div className="mb-4 p-3 bg-info/10 border border-info/20 rounded-lg">
-          <p className="text-sm text-info font-medium mb-2">🧪 Test PDF Navigation:</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const testPDFData: PDFNavData = {
-                  documentId: "8a63bd0e-64b8-41f4-92c1-a819d9d0f743",
-                  filename: "Test_Document.pdf",
-                  page: 1,
-                  context: "Testing PDF navigation functionality with real document",
-                  highlight: {
-                    text: "This is a test highlight to verify the feature works correctly"
-                  }
-                };
-                setSelectedPDFData(testPDFData);
-                setShowPDFViewer(true);
-              }}
-              className="btn btn-info btn-sm"
-            >
-              📄 Direct PDF Test
-            </button>
-            
-            <button
-              onClick={() => {
-                const testMessage: ChatMessage = {
-                  kind: "response",
-                  parts: [{
-                    content: `Based on your financial analysis, here are the key findings:
-
-## Revenue Analysis Summary
-
-The quarterly revenue shows significant growth. Here's the detailed breakdown:
-
-<PDFNav>
-{
-  "documentId": "8a63bd0e-64b8-41f4-92c1-a819d9d0f743",
-  "filename": "Financial_Analysis_Report.pdf",
-  "page": 1,
-  "context": "This page contains the comprehensive revenue analysis and growth metrics for Q4",
-  "highlight": {
-    "text": "Revenue increased by 23% compared to previous quarter"
-  }
-}
-</PDFNav>
-
-The analysis shows strong performance across all sectors. Additional details can be found in the referenced document above.`,
-                    part_kind: "text",
-                    timestamp: new Date().toISOString()
-                  }]
-                };
-                setChatHistory(prev => [...prev, testMessage]);
-              }}
-              className="btn btn-success btn-sm"
-            >
-              💬 Simulate AI Response
-            </button>
-          </div>
-        </div>
-
         <div className="flex items-center gap-2">
           <textarea
             className="textarea textarea-bordered flex-1 resize-none bg-base-100 text-base-content border-base-300"
