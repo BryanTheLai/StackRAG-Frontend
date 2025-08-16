@@ -1,4 +1,4 @@
-<Date> August 07, 2025 21:03</Date>
+<Date> August 16, 2025 10:44</Date>
 
 ```App.tsx
 import Layout from "@/components/Layout";
@@ -362,6 +362,292 @@ const Notification: React.FC<NotificationProps> = ({ message, onClose }) => {
 };
 
 export default Notification;
+```
+
+```components/PDFNavComponent.tsx
+```
+
+```components/PDFViewerEmbedded.tsx
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/supabase/client';
+import { verifyDocumentAccess } from '@/supabase/pdfNavigation';
+
+interface PDFViewerEmbeddedProps {
+  documentId: string;
+  filename: string;
+  initialPage?: number;
+}
+
+export const PDFViewerEmbedded: React.FC<PDFViewerEmbeddedProps> = ({
+  documentId,
+  filename,
+  initialPage = 1
+}) => {
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (documentId) {
+      loadPDF();
+    }
+    return () => {
+      // Cleanup blob URL when component unmounts
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [documentId]);
+
+  const loadPDF = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      // First verify document access
+      const hasAccess = await verifyDocumentAccess(documentId);
+      if (!hasAccess) {
+        throw new Error('Document not found or access denied');
+      }
+
+      // Get the document to find its storage path
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('storage_path')
+        .eq('id', documentId)
+        .single();
+
+      if (docError || !docData) {
+        throw new Error('Document not found');
+      }
+
+      // Download the PDF from storage
+      const { data: fileData, error: storageError } = await supabase.storage
+        .from('financial-pdfs')
+        .download(docData.storage_path);
+
+      if (storageError || !fileData) {
+        throw new Error('Failed to load PDF file');
+      }
+
+      // Convert to base64 data URI like in Documents.tsx
+      const arrayBuffer = await fileData.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      const url = `data:application/pdf;base64,${base64}`;
+      
+      // Add page parameter to URL for navigation
+      const urlWithPage = initialPage > 1 ? `${url}#page=${initialPage}` : url;
+      setPdfUrl(urlWithPage);
+    } catch (err: any) {
+      console.error('Error loading PDF:', err);
+      setError(err.message || 'Failed to load PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 p-4">
+      {loading && (
+        <div className="flex items-center justify-center h-full">
+          <div className="loading loading-spinner loading-lg"></div>
+          <span className="ml-3 text-base-content">Loading PDF...</span>
+        </div>
+      )}
+      
+      {error && (
+        <div className="flex items-center justify-center h-full">
+          <div className="alert alert-error max-w-md">
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+      
+      {pdfUrl && !loading && !error && (
+        <embed
+          src={pdfUrl}
+          type="application/pdf"
+          className="w-full h-full rounded border border-base-300"
+          title={`PDF: ${filename}`}
+        />
+      )}
+    </div>
+  );
+};
+```
+
+```components/PDFViewerModal.tsx
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import { supabase } from '@/supabase/client';
+import { verifyDocumentAccess } from '@/supabase/pdfNavigation';
+
+interface PDFViewerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  documentId: string;
+  filename: string;
+  initialPage?: number;
+  context?: string;
+  highlight?: {
+    text: string;
+  };
+}
+
+export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
+  isOpen,
+  onClose,
+  documentId,
+  filename,
+  initialPage = 1,
+  context,
+  highlight
+}) => {
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (isOpen && documentId) {
+      loadPDF();
+    }
+    return () => {
+      // Cleanup blob URL when component unmounts or closes
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [isOpen, documentId]);
+
+  const loadPDF = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      // First verify document access
+      const hasAccess = await verifyDocumentAccess(documentId);
+      if (!hasAccess) {
+        throw new Error('Document not found or access denied');
+      }
+
+      // Get the document to find its storage path
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('storage_path')
+        .eq('id', documentId)
+        .single();
+
+      if (docError || !docData) {
+        throw new Error('Document not found');
+      }
+
+      // Download the PDF from storage
+      const { data: fileData, error: storageError } = await supabase.storage
+        .from('financial-pdfs')
+        .download(docData.storage_path);
+
+      if (storageError || !fileData) {
+        throw new Error('Failed to load PDF file');
+      }
+
+      // Convert to base64 data URI like in Documents.tsx
+      const arrayBuffer = await fileData.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      const url = `data:application/pdf;base64,${base64}`;
+      
+      // Add page parameter to URL for navigation
+      const urlWithPage = initialPage > 1 ? `${url}#page=${initialPage}` : url;
+      setPdfUrl(urlWithPage);
+    } catch (err: any) {
+      console.error('Error loading PDF:', err);
+      setError(err.message || 'Failed to load PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      onClick={handleBackdropClick}
+    >
+      <div className="relative w-full max-w-6xl h-full max-h-[90vh] mx-4 bg-base-100 rounded-lg shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-base-300">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-base-content truncate">
+              {filename}
+            </h3>
+            {context && (
+              <p className="text-sm text-base-content/70 mt-1">{context}</p>
+            )}
+            {initialPage > 1 && (
+              <p className="text-sm text-primary mt-1">Navigated to page {initialPage}</p>
+            )}
+            {highlight?.text && (
+              <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded text-sm">
+                <span className="text-warning font-medium">Highlighted text: </span>
+                <span className="text-base-content/80">"{highlight.text}"</span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="btn btn-ghost btn-sm btn-circle ml-4"
+            aria-label="Close PDF viewer"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* PDF Content */}
+        <div className="flex-1 p-4" style={{ height: 'calc(90vh - 120px)' }}>
+          {loading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="loading loading-spinner loading-lg"></div>
+              <span className="ml-3 text-base-content">Loading PDF...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="flex items-center justify-center h-full">
+              <div className="alert alert-error max-w-md">
+                <span>{error}</span>
+              </div>
+            </div>
+          )}
+          
+          {pdfUrl && !loading && !error && (
+            <embed
+              src={pdfUrl}
+              type="application/pdf"
+              className="w-full h-full rounded border border-base-300"
+              title={`PDF: ${filename}`}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 ```
 
 ```components/PrivateRoute.tsx
@@ -1215,7 +1501,7 @@ export default function Login() {
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
-import { Send, MessageSquare, ArrowLeft } from "lucide-react";
+import { Send, MessageSquare, ArrowLeft, X } from "lucide-react";
 import { ENDPOINTS } from "@/config/api";
 import { useRoute, Link } from "wouter";
 import type { ChatMessage } from "@/supabase/chatService";
@@ -1228,11 +1514,17 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { ChartComponent } from "@/components/ChartComponent";
 import type { ChartData } from "@/types/chart";
+import { PDFViewerEmbedded } from "@/components/PDFViewerEmbedded";
+import type { PDFNavData } from "@/types/pdfnav";
 import { TypingDots } from "@/components/TypingDots";
 
 // Constants for chart processing
 const CHART_OPEN_TAG = '<ChartData>';
 const CHART_CLOSE_TAG = '</ChartData>';
+
+// Constants for PDF navigation processing
+const PDF_NAV_OPEN_TAG = '<PDFNav>';
+const PDF_NAV_CLOSE_TAG = '</PDFNav>';
 
 // Define special tag structure
 interface SpecialTagConfig {
@@ -1243,6 +1535,7 @@ interface SpecialTagConfig {
 // Special tags whose content should be buffered until fully received
 const SPECIAL_TAG_CONFIGS: SpecialTagConfig[] = [
   { OPEN_TAG: CHART_OPEN_TAG, CLOSE_TAG: CHART_CLOSE_TAG },
+  { OPEN_TAG: PDF_NAV_OPEN_TAG, CLOSE_TAG: PDF_NAV_CLOSE_TAG },
 ];
 
 // Utility to parse chart data from string
@@ -1254,7 +1547,23 @@ const parseChartDataFromString = (potentialChartString: string): ChartData | nul
       const jsonString = trimmedString.slice(CHART_OPEN_TAG.length, -CHART_CLOSE_TAG.length);
       return JSON.parse(jsonString);
     } catch (error) {
-      console.error('Failed to parse chart JSON:', error, '\\nOriginal string part:', potentialChartString);
+      console.error('Failed to parse chart JSON:', error, '\nOriginal string part:', potentialChartString);
+      return null;
+    }
+  }
+  return null;
+};
+
+// Utility to parse PDF navigation data from string
+const parsePDFNavDataFromString = (potentialPDFNavString: string): PDFNavData | null => {
+  const trimmedString = potentialPDFNavString.trim();
+  if (trimmedString.startsWith(PDF_NAV_OPEN_TAG) && trimmedString.endsWith(PDF_NAV_CLOSE_TAG)) {
+    try {
+      // Extract JSON string from between the tags
+      const jsonString = trimmedString.slice(PDF_NAV_OPEN_TAG.length, -PDF_NAV_CLOSE_TAG.length);
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse PDF navigation JSON:', error, '\nOriginal string part:', potentialPDFNavString);
       return null;
     }
   }
@@ -1285,6 +1594,10 @@ export default function Chat() {
   const [chatTitle, setChatTitle] = useState<string | null>("Chat");
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
+
+  // PDF viewer state
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [selectedPDFData, setSelectedPDFData] = useState<PDFNavData | null>(null);
 
   // UI refs
   const chatDisplayRef = useRef<HTMLDivElement>(null);
@@ -1650,17 +1963,45 @@ export default function Chat() {
         >
           {msg.parts.map((part, partIndex) => {
             const decodedContent = decodeHtmlEntities(part.content); // Decode content
-            // Split content by chart tags
-            const contentParts = decodedContent.split(new RegExp(`(${CHART_OPEN_TAG}[\\s\\S]*?${CHART_CLOSE_TAG})`, 'g')).filter(Boolean);
+            // Split content by both chart and PDF nav tags
+            const contentParts = decodedContent.split(new RegExp(`(${CHART_OPEN_TAG}[\\s\\S]*?${CHART_CLOSE_TAG}|${PDF_NAV_OPEN_TAG}[\\s\\S]*?${PDF_NAV_CLOSE_TAG})`, 'g')).filter(Boolean);
 
             return contentParts.map((contentPart, contentPartIndex) => {
-              const chartData = parseChartDataFromString(contentPart); // Try to parse the content part as chart data
+              const chartData = parseChartDataFromString(contentPart); // Try to parse as chart data
+              const pdfNavData = parsePDFNavDataFromString(contentPart); // Try to parse as PDF nav data
 
               if (chartData) {
                 // If chartData is not null, it's a valid chart block
                 return (
                   <div key={`${partIndex}-${contentPartIndex}-chart`} className="w-full">
                     <ChartComponent data={chartData} />
+                  </div>
+                );
+              } else if (pdfNavData) {
+                // If pdfNavData is not null, it's a valid PDF navigation block
+                return (
+                  <div key={`${partIndex}-${contentPartIndex}-pdfnav`} className="my-3">
+                    <button
+                      onClick={() => {
+                        setSelectedPDFData(pdfNavData);
+                        setShowPDFViewer(true);
+                      }}
+                      className="btn btn-outline btn-sm gap-2 hover:btn-primary"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                      </svg>
+                      {pdfNavData.filename} - Page {pdfNavData.page}
+                    </button>
+                    {pdfNavData.context && (
+                      <p className="text-sm text-base-content/70 mt-2 italic">
+                        {pdfNavData.context}
+                      </p>
+                    )}
                   </div>
                 );
               } else {
@@ -1734,7 +2075,7 @@ export default function Chat() {
   return (
     <div className="flex h-screen bg-base-100 text-base-content">
       <Sidebar />
-      <main className="flex-1 flex flex-col max-h-screen">
+      <main className={`flex-1 flex flex-col max-h-screen ${showPDFViewer ? 'w-1/2' : ''}`}>
         {/* Header */}
         <div className="bg-base-100 p-3 px-4 border-b border-base-200 flex items-center justify-between">
           <div className="flex items-center">
@@ -1764,6 +2105,49 @@ export default function Chat() {
         {/* Input Area */}
         {renderInputArea()}
       </main>
+
+      {/* PDF Viewer Side Panel */}
+      {showPDFViewer && selectedPDFData && (
+        <div className="w-1/2 max-w-3xl bg-base-100 border-l border-base-300 shadow-lg flex flex-col">
+          {/* PDF Header */}
+          <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-200">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-base-content truncate">
+                {selectedPDFData.filename}
+              </h3>
+              {selectedPDFData.context && (
+                <p className="text-sm text-base-content/70 mt-1">{selectedPDFData.context}</p>
+              )}
+              {selectedPDFData.page > 1 && (
+                <p className="text-sm text-primary mt-1">Page {selectedPDFData.page}</p>
+              )}
+              {selectedPDFData.highlight?.text && (
+                <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded text-sm">
+                  <span className="text-warning font-medium">Highlighted: </span>
+                  <span className="text-base-content/80">"{selectedPDFData.highlight.text}"</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setShowPDFViewer(false);
+                setSelectedPDFData(null);
+              }}
+              className="btn btn-ghost btn-sm btn-circle ml-4"
+              aria-label="Close PDF viewer"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* PDF Content */}
+          <PDFViewerEmbedded
+            documentId={selectedPDFData.documentId}
+            filename={selectedPDFData.filename}
+            initialPage={selectedPDFData.page}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -3424,14 +3808,14 @@ export default function ProfilePage() {
               />
             </div>
             {/* App Settings Display */}
-            {profile.app_settings && (
+            {/* {profile.app_settings && (
               <div>
                 <span className="font-semibold">Settings:</span>{" "}
                 <pre className="whitespace-pre-wrap text-sm">
                   {JSON.stringify(profile.app_settings, null, 2)}
                 </pre>
               </div>
-            )}
+            )} */}
             {/* Timestamps */}
             <div className="text-sm text-base-content/70">
               <div>Created: {new Date(profile.created_at).toLocaleString()}</div>
@@ -3781,6 +4165,60 @@ export async function verifyFileNames(
 }
 ```
 
+```supabase/pdfNavigation.ts
+import { supabase } from './client';
+
+export interface DocumentInfo {
+  id: string;
+  filename: string;
+  storage_path: string;
+  doc_type: string;
+  company_name: string | null;
+  report_date: Date | null;
+}
+
+/**
+ * Get document information by ID for PDF navigation
+ */
+export async function getDocumentInfo(documentId: string): Promise<DocumentInfo | null> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, filename, storage_path, doc_type, company_name, report_date')
+      .eq('id', documentId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching document info:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching document info:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify if a document exists and is accessible by the current user
+ */
+export async function verifyDocumentAccess(documentId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('id', documentId)
+      .single();
+
+    return !error && !!data;
+  } catch (error) {
+    console.error('Error verifying document access:', error);
+    return false;
+  }
+}
+```
+
 ```types/chart.ts
 export interface ChartData {
   type: 'bar' | 'line' | 'pie' | 'composed';
@@ -3809,6 +4247,18 @@ export interface ChartData {
     data_key?: string;
     label_key?: string;
     [key: string]: any; // Allow other pie_config properties
+  };
+}
+```
+
+```types/pdfnav.ts
+export interface PDFNavData {
+  documentId: string;
+  filename: string;
+  page: number;
+  context: string;
+  highlight?: {
+    text: string;
   };
 }
 ```
