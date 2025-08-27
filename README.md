@@ -15,6 +15,9 @@
 
 <!-- Demo Screenshots -->
 <p align="center">
+  <img src="public/chat_with_pdf_ui.png" alt="Chat Interface - Part 2" width="400" />
+</p>
+<p align="center">
   <img src="public/Documents.png" alt="Documents List" width="400" />
   <img src="public/Dashboard.png" alt="Dashboard View" width="400" />
 </p>
