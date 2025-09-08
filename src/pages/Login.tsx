@@ -48,7 +48,7 @@ export default function Login() {
 
   return (
     <div className="hero min-h-screen bg-base-200">
-      <div className="hero-content flex-col lg:flex-row-reverse">
+      <div className="hero-content flex-col lg:flex-row-reverse justify-center items-center px-4">
         <div className="text-center lg:text-left lg:pl-10">
           <h1 className="text-5xl font-bold">Login now!</h1>
           <p className="py-6">
@@ -56,7 +56,7 @@ export default function Login() {
             effectively.
           </p>
         </div>
-        <div className="card shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
+        <div className="card shrink-0 w-full max-w-sm p-6 shadow-2xl bg-base-100">
           <form className="card-body" onSubmit={onSubmit}>
             {feedback && (
               <div role="alert" className="alert alert-error mb-4">
@@ -79,7 +79,7 @@ export default function Login() {
               <input
                 type="email"
                 placeholder="email"
-                className="input input-bordered"
+                className="input input-bordered input-primary w-full bg-white"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
@@ -93,7 +93,7 @@ export default function Login() {
               <input
                 type="password"
                 placeholder="password"
-                className="input input-bordered"
+                className="input input-bordered input-primary w-full bg-white"
                 required
                 value={pw}
                 onChange={(e) => setPw(e.currentTarget.value)}
@@ -103,13 +103,25 @@ export default function Login() {
             <div className="form-control mt-6">
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn btn-primary btn-block w-full"
                 disabled={authLoading}
               >
                 {authLoading ? (
                   <span className="loading loading-spinner"></span>
                 ) : null}
                 {authLoading ? "Logging in..." : "Login"}
+              </button>
+            </div>
+            
+            {/* Signup Link */}
+            <div className="divider">Don't have an account?</div>
+            <div className="text-center">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => navigate("/signup")}
+              >
+                Create a new account
               </button>
             </div>
           </form>

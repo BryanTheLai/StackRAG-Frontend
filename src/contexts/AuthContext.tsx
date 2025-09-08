@@ -9,6 +9,7 @@ import {
   supabase,
   signIn as supabaseSignIn,
   signOut as supabaseSignOut,
+  signUp as supabaseSignUp,
 } from "@/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useLocation } from "wouter";
@@ -18,6 +19,11 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
+  signUp: (email: string, pass: string, metadata?: {
+    full_name?: string;
+    company_name?: string;
+    role_in_company?: string;
+  }) => Promise<{ user: User | null; session: Session | null } | void>;
   signOut: () => Promise<void>;
   authError: string | null;
   clearAuthError: () => void;
@@ -70,6 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthError(null);
     try {
       await supabaseSignIn(email, pass);
+  // clear loading after successful request; onAuthStateChange will still update session
+  setIsLoading(false);
     } catch (error) {
       setAuthError(
         error instanceof Error
@@ -80,11 +88,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signUp = async (email: string, pass: string, metadata?: {
+    full_name?: string;
+    company_name?: string;
+    role_in_company?: string;
+  }) => {
+    setIsLoading(true);
+    setAuthError(null);
+    try {
+  const res = await supabaseSignUp(email, pass, metadata);
+  setIsLoading(false);
+  return res;
+    } catch (error) {
+  const message = error instanceof Error ? error.message : 'An unknown error occurred during sign up.';
+  // log raw error for debugging in dev
+  // eslint-disable-next-line no-console
+  console.error('signUp error:', error);
+  setAuthError(message);
+  setIsLoading(false);
+  // rethrow so callers can inspect if needed
+  throw error;
+    }
+  };
+
   const signOut = async () => {
     setIsLoading(true);
     setAuthError(null);
     try {
       await supabaseSignOut();
+  setIsLoading(false);
     } catch (error) {
       setAuthError(
         error instanceof Error
@@ -104,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isLoading,
         signIn,
+        signUp,
         signOut,
         authError,
         clearAuthError,

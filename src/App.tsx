@@ -4,6 +4,7 @@ import { Route, Switch } from "wouter";
 import PrivateRoute from "@/components/PrivateRoute";
 import Dashboard from "@/pages/private/Dashboard";
 import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
 import ErrorPage from "@/pages/Error";
 import Home from "@/pages/Home";
 import Documents from "./pages/private/Documents";
@@ -19,6 +20,7 @@ export default function App() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/login" component={Login} />
+            <Route path="/signup" component={Signup} />
             <Route path="/private/dashboard">
               <PrivateRoute>
                 <Dashboard />

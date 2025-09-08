@@ -26,10 +26,15 @@ export default function Home() {
             through seamless integration and intelligent automation.
           </p>
 
-          {/* CTA Button */}
-          <Link href="/login" className="btn btn-primary btn-lg px-10 mb-12">
-            <Zap size={20} className="mr-2" /> Login
-          </Link>
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Link href="/signup" className="btn btn-primary btn-lg px-10">
+              Sign Up
+            </Link>
+            <Link href="/login" className="btn btn-outline btn-lg px-10">
+              Sign In
+            </Link>
+          </div>
 
           {/* Custom Solution Text */}
           <div className="text-center mb-10">
