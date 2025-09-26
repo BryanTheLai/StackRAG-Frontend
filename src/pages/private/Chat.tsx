@@ -444,9 +444,14 @@ export default function Chat() {
     if (isPlaceholder) {
       return (
         <div key={index} className={`flex ${chatAlignment}`}>
-          <div className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none ${bubbleClass}`}>            
-            <div className="flex items-center gap-2 mb-2">
-              <span className="badge badge-outline capitalize">{lastQuery}</span>
+          <div className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none break-words ${bubbleClass}`}>            
+            <div className="flex items-center gap-2 mb-2 min-w-0">
+              <span
+                className="badge badge-outline capitalize truncate max-w-[70%]"
+                title={lastQuery}
+              >
+                {lastQuery}
+              </span>
               <span className="text-sm text-base-content/60">Searching...</span>
             </div>
             <TypingDots />
@@ -458,7 +463,7 @@ export default function Chat() {
     return (
       <div key={index} className={`flex ${chatAlignment}`}>
         <div
-          className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none ${bubbleClass}`}
+          className={`rounded-box px-4 py-2 w-full max-w-3xl shadow-none break-words ${bubbleClass}`}
           style={{ fontSize: "1rem", lineHeight: "1.5" }}
         >
           {msg.parts.map((part, partIndex) => {
