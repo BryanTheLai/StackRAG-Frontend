@@ -1,7 +1,7 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle } from "lucide-react";
 
 export default function Login() {
   const {
@@ -15,6 +15,13 @@ export default function Login() {
   const [pw, setPw] = useState(import.meta.env.VITE_TEST_PASSWORD || "");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [, navigate] = useLocation();
+
+  // Check if redirected after signup
+  const signupSuccess = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("signup") === "success";
+  }, []);
 
   useEffect(() => {
     if (authError) {
@@ -58,6 +65,22 @@ export default function Login() {
         </div>
         <div className="card shrink-0 w-full max-w-sm p-6 shadow-2xl bg-base-100">
           <form className="card-body" onSubmit={onSubmit}>
+            {signupSuccess && !feedback && (
+              <div role="alert" className="alert alert-success mb-4">
+                <CheckCircle className="w-6 h-6" />
+                <span>
+                  Account created! Please verify your email, then log in below.
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => navigate("/login", { replace: true })}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {feedback && (
               <div role="alert" className="alert alert-error mb-4">
                 <AlertCircle className="stroke-current shrink-0 h-6 w-6" />

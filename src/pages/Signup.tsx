@@ -68,14 +68,27 @@ export default function Signup() {
     }
 
     try {
-      await signUp(email, password, {
+      const res = await signUp(email, password, {
         full_name: fullName.trim(),
         company_name: companyName.trim() || undefined,
         role_in_company: roleInCompany.trim() || undefined,
       });
 
+      // If Supabase auto-creates a session (email confirmation disabled), go to dashboard
+      if (res && (res as any).session) {
+        navigate("/private/dashboard", { replace: true });
+        return;
+      }
+
+      // Otherwise, show success and guide to verify email, then redirect to Login
       setSuccess(true);
       setFeedback("Account created successfully! Please check your email to verify your account.");
+
+      // After a brief moment to show the success message, redirect to Login
+      // Include a query param so the Login page can show a friendly banner
+      setTimeout(() => {
+        navigate("/login?signup=success", { replace: true });
+      }, 1200);
     } catch (error) {
       // log raw error in dev console
       // eslint-disable-next-line no-console
