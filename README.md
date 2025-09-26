@@ -29,6 +29,8 @@
 
 [Quick Start](#-quick-start) • [Architecture](#-architecture--data-flow) • [Key Patterns](#-key-architectural-patterns) • [Project Structure](#-project-structure)
 
+📽️ [Quick Demo Video](https://youtu.be/NAl0ogYWZHo)
+
 </div>
 
 ---
