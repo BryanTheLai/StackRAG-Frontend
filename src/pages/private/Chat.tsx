@@ -17,6 +17,7 @@ import type { ChartData } from "@/types/chart";
 import { PDFViewerEmbedded } from "@/components/PDFViewerEmbedded";
 import type { PDFNavData } from "@/types/pdfnav";
 import { TypingDots } from "@/components/TypingDots";
+import { SmartPromptSuggestions } from "@/components/SmartPromptSuggestions";
 
 // Constants for chart processing
 const CHART_OPEN_TAG = '<ChartData>';
@@ -99,6 +100,9 @@ export default function Chat() {
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [selectedPDFData, setSelectedPDFData] = useState<PDFNavData | null>(null);
 
+  // Smart suggestions state
+  const [showSuggestions, setShowSuggestions] = useState(true);
+
   // UI refs
   const chatDisplayRef = useRef<HTMLDivElement>(null);
   // Load chat session on mount or when chatId/user changes
@@ -144,6 +148,13 @@ export default function Chat() {
       });
     }
   }, [chatHistory]);
+
+  // Show suggestions when chat becomes empty
+  useEffect(() => {
+    if (chatHistory.length === 0 && !isStreaming) {
+      setShowSuggestions(true);
+    }
+  }, [chatHistory.length, isStreaming]);
 
   // Create user message object
   const createUserMessage = (content: string): ChatMessage => ({
@@ -346,6 +357,9 @@ export default function Chat() {
     const placeholder = createPlaceholderMessage();
     const currentHistory = [...chatHistory, userMessage];
 
+    // Hide suggestions when user starts chatting
+    setShowSuggestions(false);
+
     // Update UI immediately
     setChatHistory((prev) => [...prev, userMessage, placeholder]);
     setInputMessage("");
@@ -381,6 +395,12 @@ export default function Chat() {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    setInputMessage(suggestion);
+    setShowSuggestions(false);
   };
 
   // Render loading state for authentication
@@ -541,9 +561,32 @@ export default function Chat() {
   const renderChatContent = () => {
      if (isLoadingChat) return renderChatLoading();
      if (error) return renderError();
-     if (chatHistory.length === 0 && !chatId) return renderNewChatEmpty();
-     if (chatHistory.length === 0 && chatId) return renderExistingChatEmpty();
-     return chatHistory.map(renderMessage);
+     
+     // Show suggestions for empty chats
+     const isEmpty = chatHistory.length === 0;
+     const shouldShowSuggestions = isEmpty && showSuggestions && !isStreaming;
+     
+     return (
+       <>
+         {isEmpty && !chatId && !shouldShowSuggestions && renderNewChatEmpty()}
+         {isEmpty && chatId && !shouldShowSuggestions && renderExistingChatEmpty()}
+         {shouldShowSuggestions && (
+           <div className="flex flex-col items-center justify-center min-h-[60vh]">
+             <div className="text-center mb-8">
+               <MessageSquare size={48} className="mx-auto mb-4 text-base-content/40" />
+               <p className="text-xl text-base-content/80 mb-2">Start a new conversation</p>
+               <p className="text-sm text-base-content/60">Choose a suggestion below or type your own question</p>
+             </div>
+             <SmartPromptSuggestions
+               onSuggestionSelect={handleSuggestionSelect}
+               isVisible={shouldShowSuggestions}
+               className="w-full max-w-4xl px-4"
+             />
+           </div>
+         )}
+         {chatHistory.map(renderMessage)}
+       </>
+     );
   };
 
   // Render input area
