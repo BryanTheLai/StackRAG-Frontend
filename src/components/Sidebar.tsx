@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, useEffect } from "react";
+import { useState, type ChangeEvent, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "wouter";
 import {
@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { processDocument, verifyFileNames } from "@/supabase/documents";
+import { processDocument, verifyFileNames, getProcessingStatus } from "@/supabase/documents";
 import { fetchChatSessions, type ChatSession } from "@/supabase/chatService";
 
 interface SidebarProps {
@@ -21,6 +21,9 @@ interface FileResult {
   file: File;
   status: FileStatus;
   error?: string;
+  jobId?: string;
+  progress?: number;
+  currentStep?: string;
 }
 
 const links = [
@@ -44,6 +47,7 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [chatHistoryError, setChatHistoryError] = useState<string | null>(null);
+  const pollingIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const isProcessing = results.some((r) => r.status === "processing");
 
@@ -66,6 +70,102 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
       }
     }
   }, [user, collapsed, location]); // Added location to dependencies to refetch on navigation for active link update
+
+  // Poll job status for a specific file
+  const pollJobStatus = async (jobId: string, fileIndex: number) => {
+    if (!session) return;
+
+    try {
+      const status = await getProcessingStatus(jobId, session.access_token);
+      
+      setResults((prev) => {
+        const updated = [...prev];
+        if (updated[fileIndex]) {
+          updated[fileIndex] = {
+            ...updated[fileIndex],
+            progress: status.progress_percentage,
+            currentStep: status.current_step,
+          };
+
+          // Handle completion states
+          if (status.status === 'completed') {
+            updated[fileIndex].status = 'success';
+            const interval = pollingIntervals.current.get(jobId);
+            if (interval) {
+              clearInterval(interval);
+              pollingIntervals.current.delete(jobId);
+            }
+            // Notify parent to refresh documents list
+            onFilesImported?.([updated[fileIndex].file]);
+          } else if (status.status === 'failed') {
+            updated[fileIndex].status = 'error';
+            updated[fileIndex].error = status.error_message || 'Processing failed';
+            const interval = pollingIntervals.current.get(jobId);
+            if (interval) {
+              clearInterval(interval);
+              pollingIntervals.current.delete(jobId);
+            }
+          }
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error(`Error polling job ${jobId}:`, err);
+      // Don't mark as error immediately - could be temporary network issue
+    }
+  };
+
+  // Retry failed upload
+  const handleRetry = async (fileIndex: number) => {
+    if (!session) return;
+    
+    const result = results[fileIndex];
+    if (!result || result.status !== 'error') return;
+
+    // Reset to processing state
+    setResults((prev) => {
+      const updated = [...prev];
+      updated[fileIndex] = {
+        ...updated[fileIndex],
+        status: 'processing',
+        progress: 0,
+        currentStep: 'Retrying upload...',
+        error: undefined,
+      };
+      return updated;
+    });
+
+    try {
+      const response = await processDocument(result.file, session.access_token);
+      
+      // Update with new job ID and start polling
+      setResults((prev) => {
+        const updated = [...prev];
+        if (updated[fileIndex]) {
+          updated[fileIndex].jobId = response.job_id;
+          updated[fileIndex].currentStep = 'Queued for processing...';
+        }
+        return updated;
+      });
+
+      // Start polling this job
+      const interval = setInterval(() => {
+        pollJobStatus(response.job_id, fileIndex);
+      }, 2000);
+      
+      pollingIntervals.current.set(response.job_id, interval);
+
+    } catch (err) {
+      setResults((prev) => {
+        const updated = [...prev];
+        if (updated[fileIndex]) {
+          updated[fileIndex].status = 'error';
+          updated[fileIndex].error = (err as Error).message;
+        }
+        return updated;
+      });
+    }
+  };
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
@@ -91,28 +191,61 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
       return;
     }
 
-    // start processing
-    setResults(files.map((f) => ({ file: f, status: "processing" })));
+    // Initialize results with processing status
+    setResults(files.map((f) => ({ 
+      file: f, 
+      status: "processing",
+      progress: 0,
+      currentStep: "Uploading..."
+    })));
 
-    const settled = await Promise.allSettled(
-      files.map((f) => processDocument(f, session.access_token))
-    );
-
-    const newResults: FileResult[] = settled.map<FileResult>((r, i) =>
-      r.status === "fulfilled"
-        ? { file: files[i], status: "success" }
-        : {
-            file: files[i],
-            status: "error",
-            error: (r.reason as Error).message,
+    // Start uploads and get job IDs
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        const response = await processDocument(file, session.access_token);
+        
+        // Update with job ID and start polling
+        setResults((prev) => {
+          const updated = [...prev];
+          if (updated[index]) {
+            updated[index].jobId = response.job_id;
+            updated[index].currentStep = "Queued for processing...";
           }
-    );
+          return updated;
+        });
 
-    setResults(newResults);
+        // Start polling this job every 2 seconds
+        const interval = setInterval(() => {
+          pollJobStatus(response.job_id, index);
+        }, 2000);
+        
+        pollingIntervals.current.set(response.job_id, interval);
+
+        return { success: true, index, jobId: response.job_id };
+      } catch (err) {
+        setResults((prev) => {
+          const updated = [...prev];
+          if (updated[index]) {
+            updated[index].status = 'error';
+            updated[index].error = (err as Error).message;
+          }
+          return updated;
+        });
+        return { success: false, index, error: err };
+      }
+    });
+
+    await Promise.allSettled(uploadPromises);
     input.value = "";
-
-    onFilesImported?.(files);
   };
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervals.current.forEach((interval) => clearInterval(interval));
+      pollingIntervals.current.clear();
+    };
+  }, []);
 
   // local component for Chat History dropdown trigger
   const ToggleIcon = collapsed ? Menu : X;
@@ -242,27 +375,58 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
 
             {results.length > 0 && (
               <ul className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                {results.map(({ file, status, error }, i) => (
+                {results.map(({ file, status, error, progress }, i) => (
                   <li
                     key={i}
-                    className="flex items-center min-w-0 bg-base-100 text-base-content"
+                    className="flex flex-col min-w-0 bg-base-100 text-base-content p-2 rounded-md border border-base-300"
                   >
-                    <span
-                      title={file.name}
-                      className="flex-1 text-sm truncate mr-2"
-                    >
-                      {file.name}
-                    </span>
-                    <div className="w-5 flex justify-center">
-                      {status === "success" && (
-                        <CheckCircle className="h-5 w-5 text-success" />
+                    <div className="flex items-center min-w-0 gap-2">
+                      <span
+                        title={file.name}
+                        className="flex-1 text-xs truncate font-medium"
+                      >
+                        {file.name}
+                      </span>
+                      {status === "processing" && progress !== undefined && (
+                        <span className="text-xs font-semibold text-primary whitespace-nowrap">
+                          {progress}%
+                        </span>
                       )}
-                      {status === "error" && (
-                        <div title={error} className="w-5 flex justify-center">
-                          <AlertTriangle className="h-5 w-5 text-error" />
-                        </div>
-                      )}
+                      <div className="w-4 flex justify-center flex-shrink-0">
+                        {status === "processing" && (
+                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                        )}
+                        {status === "success" && (
+                          <CheckCircle className="h-4 w-4 text-success" />
+                        )}
+                        {status === "error" && (
+                          <div title={error}>
+                            <AlertTriangle className="h-4 w-4 text-error" />
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    {status === "processing" && (
+                      <div className="mt-1.5">
+                        <progress 
+                          className="progress progress-primary w-full h-1" 
+                          value={progress || 0} 
+                          max="100"
+                        />
+                      </div>
+                    )}
+                    {status === "error" && error && (
+                      <div className="mt-1 flex items-start justify-between gap-2">
+                        <div className="text-xs text-error flex-1 leading-tight">{error}</div>
+                        <button
+                          onClick={() => handleRetry(i)}
+                          className="btn btn-xs btn-error btn-outline"
+                          disabled={isProcessing}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

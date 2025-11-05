@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from '@/components/Sidebar';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { RefreshCw, CheckCircle, X, ArrowUpRight, ArrowDownRight, MinusCircle } from 'lucide-react';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 
 interface IncomeStatementSummary {
   id: string;
@@ -43,12 +45,6 @@ const formatDisplayNumber = (num: number | null | undefined): string => {
   return num.toLocaleString(undefined); // Default locale, adds commas
 };
 
-// Helper to format currency
-const formatCurrency = (num: number | null | undefined, currencyCode: string = 'USD', signDisplay: 'auto' | 'always' | 'never' | 'exceptZero' = 'auto'): string => {
-  if (num === null || num === undefined) return 'N/A';
-  return num.toLocaleString(undefined, { style: 'currency', currency: currencyCode, signDisplay });
-};
-
 // Helper to calculate and format variance percentage
 const calculateAndFormatPercentage = (current: number | null | undefined, previous: number | null | undefined): string => {
   if (current === null || current === undefined || previous === null || previous === undefined) return 'N/A';
@@ -60,6 +56,17 @@ const calculateAndFormatPercentage = (current: number | null | undefined, previo
 export default function Dashboard() {
   const { session, user } = useAuth(); 
   const authLoading = !session || !user; // Infer authLoading state
+  const { settings } = useAppSettings(); // Get user settings
+  
+  // Helper to format currency using user's preferred currency or document's currency
+  const formatCurrency = useCallback((
+    num: number | null | undefined,
+    currencyCode?: string,
+    signDisplay: 'auto' | 'always' | 'never' | 'exceptZero' = 'auto'
+  ): string => {
+    const currency = currencyCode || settings.currency || 'USD';
+    return formatCurrencyUtil(num, currency, signDisplay);
+  }, [settings.currency]);
   
   const [summariesForChart, setSummariesForChart] = useState<IncomeStatementSummary[]>([]);
   const [currentYearAggregated, setCurrentYearAggregated] = useState<AggregatedAnnualSummary | null>(null);
@@ -475,41 +482,95 @@ export default function Dashboard() {
         {summariesForChart.length > 0 ? (
           <div className="flex-grow card bg-base-100 shadow-xl p-4 min-h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={summariesForChart.map(s => ({...s, period_end_date_formatted: formatDateForXAxis(s.period_end_date, selectedPeriod)}))}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 30, 
-                  bottom: 30, 
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
-                <XAxis dataKey="period_end_date_formatted" tick={{ fontSize: 12, fill: '#FFFFFF' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#FFFFFF' }} tickFormatter={(value) => formatDisplayNumber(value)} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--b1))', 
-                    color: 'hsl(var(--bc))', 
-                    borderRadius: '0.375rem', 
-                    borderColor: 'hsl(var(--n))', 
-                    opacity: 0.95,
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+              {settings.chartType === 'bar' ? (
+                <BarChart
+                  data={summariesForChart.map(s => ({...s, period_end_date_formatted: formatDateForXAxis(s.period_end_date, selectedPeriod)}))}
+                  margin={{
+                    top: 5,
+                    right: 30,
+                    left: 30, 
+                    bottom: 30, 
                   }}
-                  itemStyle={{ fontSize: 12 }}
-                  formatter={(value: any, name: any, entry: any) => {
-                    const currency = entry?.payload?.currency || 'USD';
-                    if (typeof value === 'number') {
-                      return [formatCurrency(value, currency), name];
-                    }
-                    return [value, name];
+                >
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
+                  <XAxis 
+                    dataKey="period_end_date_formatted" 
+                    tick={{ fontSize: 12, fill: '#FFFFFF' }} 
+                    label={{ value: 'Period', position: 'insideBottom', offset: -5, fill: '#FFFFFF', fontSize: 14 }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12, fill: '#FFFFFF' }} 
+                    tickFormatter={(value) => formatDisplayNumber(value)} 
+                    label={{ value: 'Amount', angle: -90, position: 'insideLeft', fill: '#FFFFFF', fontSize: 14 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--b1))', 
+                      color: 'hsl(var(--bc))', 
+                      borderRadius: '0.375rem', 
+                      borderColor: 'hsl(var(--n))', 
+                      opacity: 0.95,
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+                    }}
+                    itemStyle={{ fontSize: 12 }}
+                    formatter={(value: any, name: any, entry: any) => {
+                      const currency = entry?.payload?.currency || settings.currency || 'USD';
+                      if (typeof value === 'number') {
+                        return [formatCurrency(value, currency), name];
+                      }
+                      return [value, name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px', color: 'hsl(var(--bc) / 0.8)' }} />
+                  <Bar dataKey="total_revenue" fill="#3b82f6" name="Total Revenue" isAnimationActive={false}/>
+                  <Bar dataKey="total_expenses" fill="#ef4444" name="Total Expenses" isAnimationActive={false}/>
+                  <Bar dataKey="net_income" fill="#22c55e" name="Net Income" isAnimationActive={false}/>
+                </BarChart>
+              ) : (
+                <LineChart
+                  data={summariesForChart.map(s => ({...s, period_end_date_formatted: formatDateForXAxis(s.period_end_date, selectedPeriod)}))}
+                  margin={{
+                    top: 5,
+                    right: 30,
+                    left: 30, 
+                    bottom: 30, 
                   }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px', color: 'hsl(var(--bc) / 0.8)' }} />
-                <Line type="monotone" dataKey="total_revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 6 }} name="Total Revenue" dot={false} isAnimationActive={false}/>
-                <Line type="monotone" dataKey="total_expenses" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 6 }} name="Total Expenses" dot={false} isAnimationActive={false}/>
-                <Line type="monotone" dataKey="net_income" stroke="#22c55e" strokeWidth={2} activeDot={{ r: 6 }} name="Net Income" dot={false} isAnimationActive={false}/>
-              </LineChart>
+                >
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
+                  <XAxis 
+                    dataKey="period_end_date_formatted" 
+                    tick={{ fontSize: 12, fill: '#FFFFFF' }} 
+                    label={{ value: 'Period', position: 'insideBottom', offset: -5, fill: '#FFFFFF', fontSize: 14 }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12, fill: '#FFFFFF' }} 
+                    tickFormatter={(value) => formatDisplayNumber(value)} 
+                    label={{ value: 'Amount', angle: -90, position: 'insideLeft', fill: '#FFFFFF', fontSize: 14 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--b1))', 
+                      color: 'hsl(var(--bc))', 
+                      borderRadius: '0.375rem', 
+                      borderColor: 'hsl(var(--n))', 
+                      opacity: 0.95,
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+                    }}
+                    itemStyle={{ fontSize: 12 }}
+                    formatter={(value: any, name: any, entry: any) => {
+                      const currency = entry?.payload?.currency || settings.currency || 'USD';
+                      if (typeof value === 'number') {
+                        return [formatCurrency(value, currency), name];
+                      }
+                      return [value, name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px', color: 'hsl(var(--bc) / 0.8)' }} />
+                  <Line type="monotone" dataKey="total_revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 6 }} name="Total Revenue" dot={false} isAnimationActive={false}/>
+                  <Line type="monotone" dataKey="total_expenses" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 6 }} name="Total Expenses" dot={false} isAnimationActive={false}/>
+                  <Line type="monotone" dataKey="net_income" stroke="#22c55e" strokeWidth={2} activeDot={{ r: 6 }} name="Net Income" dot={false} isAnimationActive={false}/>
+                </LineChart>
+              )}
             </ResponsiveContainer>
           </div>
         ) : (

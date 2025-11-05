@@ -3,17 +3,25 @@ import { useSearch, Link } from "wouter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 // Removed react-pdf imports and worker config
 import {
   type DocumentData,
   fetchDocuments,
   deleteDocument,
+  updateDocument,
   getStatusBadgeClass,
+  getActiveProcessingJobs,
+  type ProcessingJobStatus,
 } from "@/supabase/documents";
 import Sidebar from "@/components/Sidebar";
-import { Eye, Download, Trash2, X } from "lucide-react";
+import { Eye, Download, Trash2, X, Loader2 } from "lucide-react";
+import EditableCell from "@/components/EditableCell";
 
 export default function Documents() {
+  // Auth context
+  const { session } = useAuth();
+  
   // State management
   const [docs, setDocs] = useState<DocumentData[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -36,6 +44,9 @@ export default function Documents() {
 
   // New state for refresh flag
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
+  
+  // Processing jobs state
+  const [activeJobs, setActiveJobs] = useState<ProcessingJobStatus[]>([]);
 
   // PDF viewer state
   const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
@@ -43,6 +54,11 @@ export default function Documents() {
   const [pdfLoading, setPdfLoading] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string>("");
   const [pdfFilename, setPdfFilename] = useState<string>("");
+
+  // Document detail modal state
+  const [selectedDoc, setSelectedDoc] = useState<DocumentData | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const detailModalRef = useRef<HTMLDialogElement>(null);
 
   // Callback to refresh documents after import
   const handleFilesImported = (_files: File[]) => {
@@ -63,6 +79,28 @@ export default function Documents() {
     loadDocuments();
   }, [searchTerm, docIdFromUrl, refreshFlag]);
 
+  // Load and poll active processing jobs
+  useEffect(() => {
+    if (!session) return;
+
+    const loadActiveJobs = async () => {
+      const jobs = await getActiveProcessingJobs();
+      setActiveJobs(jobs);
+    };
+
+    // Load immediately
+    loadActiveJobs();
+
+    // Poll every 3 seconds for updates
+    const interval = setInterval(() => {
+      loadActiveJobs();
+      // Also refresh documents list to catch newly completed ones
+      setRefreshFlag((f) => f + 1);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [session]);
+
   // Control delete confirmation modal visibility
   useEffect(() => {
     if (isDeleteModalOpen) {
@@ -71,6 +109,15 @@ export default function Documents() {
       deleteModalRef.current?.close();
     }
   }, [isDeleteModalOpen]);
+
+  // Control detail modal visibility
+  useEffect(() => {
+    if (showDetailModal) {
+      detailModalRef.current?.showModal();
+    } else {
+      detailModalRef.current?.close();
+    }
+  }, [showDetailModal]);
 
   // Utility functions
   const clearMessages = () => {
@@ -104,6 +151,48 @@ export default function Documents() {
 
     setIsDeleteModalOpen(false);
     setDocIdToDelete(null);
+  };
+
+  // Handle row click to show details
+  const handleRowClick = (doc: DocumentData) => {
+    setSelectedDoc(doc);
+    setShowDetailModal(true);
+  };
+
+  // Handle retry for failed document - AUTOMATIC!
+  const handleRetryDocument = async (doc: DocumentData) => {
+    if (!session) return;
+
+    // Close detail modal
+    setShowDetailModal(false);
+    
+    // Show loading state
+    clearMessages();
+    setDeleteSuccessMessage("Retrying upload...");
+
+    try {
+      // Import the retry function dynamically
+      const { retryFailedDocument } = await import('@/supabase/documents');
+      
+      // Automatically download from storage and re-upload
+      const result = await retryFailedDocument(doc, session.access_token);
+
+      if (result.success) {
+        setDeleteSuccessMessage(`Retry started successfully! Processing ${doc.filename}...`);
+        // Refresh documents list
+        setRefreshFlag((f) => f + 1);
+        setTimeout(() => setDeleteSuccessMessage(""), 3000);
+      } else {
+        setDeleteErrorMessage(result.message);
+        setTimeout(() => setDeleteErrorMessage(""), 5000);
+      }
+    } catch (error) {
+      console.error("Error retrying document:", error);
+      setDeleteErrorMessage(
+        error instanceof Error ? error.message : "Failed to retry document"
+      );
+      setTimeout(() => setDeleteErrorMessage(""), 5000);
+    }
   };
 
 
@@ -214,6 +303,37 @@ export default function Documents() {
           </div>
         </div>
       )}
+      {activeJobs.length > 0 && (
+        <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-sm font-medium">
+              Processing {activeJobs.length} document{activeJobs.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {activeJobs.map((job) => (
+              <div key={job.id} className="flex items-center gap-3 bg-base-100 px-3 py-2 rounded-md">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" title={job.filename}>
+                    {job.filename}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <progress 
+                      className="progress progress-primary flex-1 h-1.5" 
+                      value={job.progress_percentage} 
+                      max="100"
+                    />
+                    <span className="text-xs font-semibold text-primary whitespace-nowrap">
+                      {job.progress_percentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {docIdFromUrl && (
         <div className="alert alert-info shadow-lg mb-4">
           <div>
@@ -301,49 +421,50 @@ export default function Documents() {
   };
 
   const renderDocumentRow = (doc: DocumentData, index: number) => (
-    <tr key={doc.id} className="hover:bg-base-200 border-b border-base-300">
+    <tr 
+      key={doc.id} 
+      className="hover:bg-base-200 border-b border-base-300 cursor-pointer"
+      onClick={() => handleRowClick(doc)}
+    >
       <td className="font-medium border-r border-base-300">{index + 1}</td>
       <td className="border-r border-base-300">{doc.filename}</td>
       <td className="text-sm whitespace-nowrap border-r border-base-300">{new Date(doc.upload_timestamp).toLocaleString()}</td>
       <td className="text-sm border-r border-base-300">{doc.doc_specific_type}</td>
-      <td className="text-sm max-w-xs truncate border-r border-base-300 relative group" title={doc.doc_summary}>
-        {doc.doc_summary}
-        {doc.doc_summary && (
-          <span className="absolute left-1/2 z-50 hidden group-hover:flex -translate-x-1/2 mt-2 px-3 py-2 rounded shadow-lg bg-base-200 text-base-content text-xs whitespace-pre-line max-w-xs border border-base-300">
-            {doc.doc_summary}
-          </span>
-        )}
+      <td className="text-sm max-w-xs truncate border-r border-base-300">
+        {doc.doc_summary || 'No summary available'}
       </td>
       <td className="border-r border-base-300">
         <span className={`badge ${getStatusBadgeClass(doc.status)} badge-sm`}>
           {doc.status}
         </span>
       </td>
-      <td>
-        <button
-          onClick={() => handleViewPdf(doc.storage_path, doc.filename)}
-          className="btn btn-primary btn-sm btn-outline mr-2"
-          aria-label="View PDF"
-          title="View PDF"
-        >
-          <Eye size={18} />
-        </button>
-        <button
-          onClick={() => handleDownloadPdf(doc.storage_path, doc.filename)}
-          className="btn btn-secondary btn-sm btn-outline mr-2"
-          aria-label="Download"
-          title="Download"
-        >
-          <Download size={18} />
-        </button>
-        <button
-          onClick={() => handleDeleteInitiate(doc.id)}
-          className="btn btn-error btn-sm btn-outline"
-          aria-label="Delete"
-          title="Delete"
-        >
-          <Trash2 size={18} />
-        </button>
+      <td onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleViewPdf(doc.storage_path, doc.filename)}
+            className="btn btn-primary btn-sm btn-outline"
+            aria-label="View PDF"
+            title="View PDF"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            onClick={() => handleDownloadPdf(doc.storage_path, doc.filename)}
+            className="btn btn-secondary btn-sm btn-outline"
+            aria-label="Download"
+            title="Download"
+          >
+            <Download size={16} />
+          </button>
+          <button
+            onClick={() => handleDeleteInitiate(doc.id)}
+            className="btn btn-error btn-sm btn-outline"
+            aria-label="Delete"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -473,6 +594,233 @@ export default function Documents() {
         </div>
       )}
       {renderDeleteModal()}
+      
+      {/* Document Detail Modal */}
+      <dialog
+        ref={detailModalRef}
+        className="modal"
+        onClose={() => setShowDetailModal(false)}
+      >
+        <div className="modal-box max-w-2xl">
+          <button
+            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+            onClick={() => setShowDetailModal(false)}
+          >
+            ✕
+          </button>
+          
+          {selectedDoc && (
+            <div>
+              <h3 className="font-bold text-lg mb-4">Document Details</h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70">File Name</label>
+                  <p className="text-base">{selectedDoc.filename}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70">Upload Time</label>
+                  <p className="text-base">{new Date(selectedDoc.upload_timestamp).toLocaleString()}</p>
+                </div>
+                
+                <div className="divider my-2">Editable Metadata</div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70 mb-1 block">Document Type</label>
+                  <EditableCell
+                    value={selectedDoc.doc_specific_type}
+                    type="select"
+                    options={[
+                      { value: 'Income Statement', label: 'Income Statement' },
+                      { value: 'Balance Sheet', label: 'Balance Sheet' },
+                      { value: 'Cash Flow Statement', label: 'Cash Flow Statement' },
+                      { value: 'Financial Report', label: 'Financial Report' },
+                      { value: 'Invoice', label: 'Invoice' },
+                      { value: 'Receipt', label: 'Receipt' },
+                      { value: 'Other', label: 'Other' },
+                    ]}
+                    onSave={async (newValue) => {
+                      await updateDocument(selectedDoc.id, { doc_specific_type: newValue as string });
+                      setSelectedDoc({ ...selectedDoc, doc_specific_type: newValue as string });
+                      setRefreshFlag(f => f + 1);
+                    }}
+                    emptyText="Not set"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70 mb-1 block">Company Name</label>
+                  <EditableCell
+                    value={selectedDoc.company_name}
+                    type="text"
+                    placeholder="Enter company name"
+                    onSave={async (newValue) => {
+                      await updateDocument(selectedDoc.id, { company_name: newValue as string });
+                      setSelectedDoc({ ...selectedDoc, company_name: newValue as string });
+                      setRefreshFlag(f => f + 1);
+                    }}
+                    emptyText="Not set"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70 mb-1 block">Report Date</label>
+                  <EditableCell
+                    value={selectedDoc.report_date}
+                    type="date"
+                    onSave={async (newValue) => {
+                      await updateDocument(selectedDoc.id, { report_date: newValue as string });
+                      setSelectedDoc({ ...selectedDoc, report_date: newValue as string });
+                      setRefreshFlag(f => f + 1);
+                    }}
+                    emptyText="Not set"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-base-content/70 mb-1 block">Year</label>
+                    <EditableCell
+                      value={selectedDoc.doc_year}
+                      type="number"
+                      placeholder="YYYY"
+                      validate={(val) => !val || (Number(val) >= 1900 && Number(val) <= 2100)}
+                      onSave={async (newValue) => {
+                        await updateDocument(selectedDoc.id, { doc_year: newValue as number });
+                        setSelectedDoc({ ...selectedDoc, doc_year: newValue as number });
+                        setRefreshFlag(f => f + 1);
+                      }}
+                      emptyText="Not set"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-semibold text-base-content/70 mb-1 block">Quarter</label>
+                    <EditableCell
+                      value={selectedDoc.doc_quarter}
+                      type="select"
+                      options={[
+                        { value: 1, label: 'Q1' },
+                        { value: 2, label: 'Q2' },
+                        { value: 3, label: 'Q3' },
+                        { value: 4, label: 'Q4' },
+                      ]}
+                      onSave={async (newValue) => {
+                        await updateDocument(selectedDoc.id, { doc_quarter: newValue as number });
+                        setSelectedDoc({ ...selectedDoc, doc_quarter: newValue as number });
+                        setRefreshFlag(f => f + 1);
+                      }}
+                      emptyText="Not set"
+                    />
+                  </div>
+                </div>
+                
+                <div className="divider my-2">System Information</div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70">Status</label>
+                  <div className="mt-1 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`badge ${getStatusBadgeClass(selectedDoc.status)} badge-md font-semibold`}>
+                        {selectedDoc.status}
+                      </span>
+                      {selectedDoc.status === 'failed' && (
+                        <span className="text-sm text-error">
+                          ⚠️ Processing failed
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Context-specific help based on error type (when backend provides error_code) */}
+                    {selectedDoc.status === 'failed' && (
+                      <div className="alert alert-warning text-xs py-2">
+                        <div className="flex flex-col gap-1">
+                          <p className="font-semibold">💡 What to do:</p>
+                          <p>Click "Retry Upload" below. The file will be automatically re-uploaded without manual selection.</p>
+                          <p className="text-base-content/60 italic">If the issue persists after 2-3 retries, the file may be corrupted or the AI service may be temporarily unavailable.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-semibold text-base-content/70">Document Summary</label>
+                  <p className="text-base whitespace-pre-wrap mt-1 p-3 bg-base-200 rounded-lg">
+                    {selectedDoc.doc_summary || 'No summary available'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="modal-action">
+                {selectedDoc.status === 'failed' ? (
+                  // Failed document - show prominent retry button
+                  <div className="flex flex-col gap-2 w-full">
+                    <button 
+                      className="btn btn-warning btn-lg w-full"
+                      onClick={() => handleRetryDocument(selectedDoc)}
+                    >
+                      🔄 Retry Upload (Automatic)
+                    </button>
+                    <div className="text-xs text-center text-base-content/70">
+                      File will be automatically downloaded and re-uploaded
+                    </div>
+                    <div className="divider">OR</div>
+                    <button
+                      className="btn btn-error btn-outline w-full"
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleDeleteInitiate(selectedDoc.id);
+                      }}
+                    >
+                      <Trash2 size={18} className="mr-2" />
+                      Delete Document
+                    </button>
+                  </div>
+                ) : (
+                  // Successful document - show normal actions
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleViewPdf(selectedDoc.storage_path, selectedDoc.filename);
+                      }}
+                    >
+                      <Eye size={18} className="mr-2" />
+                      View PDF
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleDownloadPdf(selectedDoc.storage_path, selectedDoc.filename);
+                      }}
+                    >
+                      <Download size={18} className="mr-2" />
+                      Download
+                    </button>
+                    <button
+                      className="btn btn-error btn-outline"
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleDeleteInitiate(selectedDoc.id);
+                      }}
+                    >
+                      <Trash2 size={18} className="mr-2" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setShowDetailModal(false)}>close</button>
+        </form>
+      </dialog>
     </div>
   );
 }

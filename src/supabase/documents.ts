@@ -8,10 +8,16 @@ export interface DocumentData {
   upload_timestamp: string;
   status: string;
   doc_type: string;
-  doc_specific_type: string;
-  doc_summary: string;
-  full_markdown_content: string;
-  storage_path: string; // Path in supabase storage for PDF file
+  doc_specific_type: string | null;
+  doc_summary: string | null;
+  full_markdown_content: string | null;
+  storage_path: string;
+  // Additional metadata fields
+  company_name: string | null;
+  report_date: string | null;
+  doc_year: number | null;
+  doc_quarter: number | null;
+  metadata: Record<string, any> | null;
 }
 
 // Legacy interface for backward compatibility
@@ -29,7 +35,7 @@ export async function fetchDocuments(
   const query = supabase
     .from("documents")
     .select(
-      "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content, storage_path"
+      "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content, storage_path, company_name, report_date, doc_year, doc_quarter, metadata"
     )
     .order("upload_timestamp", { ascending: false });
 
@@ -46,6 +52,21 @@ export async function fetchDocuments(
   }
 
   return (data as DocumentData[]) || [];
+}
+
+// Update document metadata
+export async function updateDocument(
+  docId: string,
+  updates: Partial<Pick<DocumentData, 'doc_specific_type' | 'company_name' | 'report_date' | 'doc_year' | 'doc_quarter' | 'metadata'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from("documents")
+    .update(updates)
+    .eq("id", docId);
+
+  if (error) {
+    throw new Error(`Error updating document: ${error.message}`);
+  }
 }
 
 // Delete a document by ID
@@ -113,6 +134,8 @@ export function getStatusBadgeClass(status: string): string {
       return "badge-success";
     case "processing":
       return "badge-warning";
+    case "failed":
+      return "badge-error";
     default:
       return "badge-ghost";
   }
@@ -129,10 +152,11 @@ export async function fetchDocumentsAPI(accessToken: string): Promise<Doc[]> {
 }
 
 // Process a PDF file by sending it as pdf_file_buffer with access token
+// Returns job_id immediately for status tracking
 export async function processDocument(
   file: File,
   accessToken: string
-): Promise<any> {
+): Promise<{ success: boolean; job_id: string; filename: string; message: string }> {
   const formData = new FormData();
   // Use 'file' as the field name to match FastAPI's UploadFile parameter
   formData.append("file", file);
@@ -147,6 +171,93 @@ export async function processDocument(
 
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+// Processing job status interface
+export interface ProcessingJobStatus {
+  id: string;
+  user_id: string;
+  document_id?: string;
+  filename: string;
+  status: 'pending' | 'parsing' | 'extracting_metadata' | 'uploading' | 'sectioning' | 'chunking' | 'embedding' | 'saving' | 'completed' | 'failed';
+  current_step: string;
+  progress_percentage: number;
+  error_message?: string;
+  error_code?: string; // NEW: Technical error code for categorization (api_key_invalid, file_corrupted, etc)
+  retry_count: number; // NEW: How many times user has retried
+  result_data?: any;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Poll processing status by job ID
+export async function getProcessingStatus(
+  jobId: string,
+  accessToken: string
+): Promise<ProcessingJobStatus> {
+  const res = await fetch(`${ENDPOINTS.DOCUMENTS}/processing-status/${jobId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Get all active processing jobs for current user
+export async function getActiveProcessingJobs(): Promise<ProcessingJobStatus[]> {
+  const { data, error } = await supabase
+    .from("processing_jobs")
+    .select("*")
+    .in("status", ["pending", "parsing", "extracting_metadata", "uploading", "sectioning", "chunking", "embedding", "saving"])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching active jobs:", error);
+    return [];
+  }
+
+  return (data as ProcessingJobStatus[]) || [];
+}
+
+// Retry failed document by downloading from storage and re-uploading
+export async function retryFailedDocument(
+  doc: DocumentData,
+  accessToken: string
+): Promise<{ success: boolean; job_id?: string; message: string }> {
+  try {
+    // Step 1: Download the file from Supabase storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('financial-pdfs')
+      .download(doc.storage_path);
+
+    if (downloadError || !fileData) {
+      throw new Error(`Failed to download file: ${downloadError?.message || 'No file data'}`);
+    }
+
+    // Step 2: Convert Blob to File object with original filename
+    const file = new File([fileData], doc.filename, { type: 'application/pdf' });
+
+    // Step 3: Delete the failed document record (to avoid "already exists" error)
+    await deleteDocument(doc.id);
+
+    // Step 4: Re-upload to backend
+    const uploadResult = await processDocument(file, accessToken);
+
+    return {
+      success: true,
+      job_id: uploadResult.job_id,
+      message: 'Document retry started successfully'
+    };
+  } catch (error) {
+    console.error('Error retrying document:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to retry document'
+    };
+  }
 }
 
 /**
