@@ -12,6 +12,8 @@ import {
   updateDocument,
   getStatusBadgeClass,
   getActiveProcessingJobs,
+  getRecentFailedProcessingJobs,
+  retryFailedProcessingJob,
   type ProcessingJobStatus,
 } from "@/supabase/documents";
 import Sidebar from "@/components/Sidebar";
@@ -47,6 +49,16 @@ export default function Documents() {
   
   // Processing jobs state
   const [activeJobs, setActiveJobs] = useState<ProcessingJobStatus[]>([]);
+  const [failedJobs, setFailedJobs] = useState<ProcessingJobStatus[]>([]);
+  const [dismissedFailedJobIds, setDismissedFailedJobIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("dismissed_failed_processing_job_ids");
+      const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+      return new Set(parsed);
+    } catch {
+      return new Set();
+    }
+  });
 
   // PDF viewer state
   const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
@@ -83,23 +95,74 @@ export default function Documents() {
   useEffect(() => {
     if (!session) return;
 
-    const loadActiveJobs = async () => {
-      const jobs = await getActiveProcessingJobs();
+    const loadJobs = async () => {
+      const [jobs, failed] = await Promise.all([
+        getActiveProcessingJobs(),
+        getRecentFailedProcessingJobs(10),
+      ]);
       setActiveJobs(jobs);
+      setFailedJobs(failed.filter((j) => !dismissedFailedJobIds.has(j.id)));
     };
 
     // Load immediately
-    loadActiveJobs();
+    loadJobs();
 
     // Poll every 3 seconds for updates
     const interval = setInterval(() => {
-      loadActiveJobs();
+      loadJobs();
       // Also refresh documents list to catch newly completed ones
       setRefreshFlag((f) => f + 1);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, dismissedFailedJobIds]);
+
+  const persistDismissedFailedJobs = (ids: Set<string>) => {
+    try {
+      localStorage.setItem(
+        "dismissed_failed_processing_job_ids",
+        JSON.stringify(Array.from(ids))
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const dismissFailedJob = (jobId: string) => {
+    setDismissedFailedJobIds((prev) => {
+      const next = new Set(prev);
+      next.add(jobId);
+      persistDismissedFailedJobs(next);
+      return next;
+    });
+    setFailedJobs((prev) => prev.filter((j) => j.id !== jobId));
+  };
+
+  const dismissAllFailedJobs = () => {
+    setDismissedFailedJobIds((prev) => {
+      const next = new Set(prev);
+      for (const j of failedJobs) next.add(j.id);
+      persistDismissedFailedJobs(next);
+      return next;
+    });
+    setFailedJobs([]);
+  };
+
+  const handleRetryFailedJob = async (jobId: string) => {
+    if (!session) return;
+    clearMessages();
+    setDeleteSuccessMessage("Retrying failed job...");
+    try {
+      const result = await retryFailedProcessingJob(jobId, session.access_token);
+      setDeleteSuccessMessage(result.message || "Retry started");
+      dismissFailedJob(jobId);
+      setRefreshFlag((f) => f + 1);
+      setTimeout(() => setDeleteSuccessMessage(""), 3000);
+    } catch (error) {
+      setDeleteErrorMessage(error instanceof Error ? error.message : "Failed to retry job");
+      setTimeout(() => setDeleteErrorMessage(""), 5000);
+    }
+  };
 
   // Control delete confirmation modal visibility
   useEffect(() => {
@@ -300,6 +363,51 @@ export default function Documents() {
               />
             </svg>
             <span>{deleteErrorMessage}</span>
+          </div>
+        </div>
+      )}
+      {failedJobs.length > 0 && (
+        <div className="alert alert-warning shadow-lg mb-4">
+          <div className="w-full">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="font-medium">
+                  {failedJobs.length} document{failedJobs.length > 1 ? 's' : ''} failed to process
+                </div>
+                <div className="text-sm opacity-80">
+                  Retry here or dismiss to clear the banner.
+                </div>
+              </div>
+              <button className="btn btn-sm btn-ghost" onClick={dismissAllFailedJobs}>
+                Dismiss all
+              </button>
+            </div>
+            <div className="mt-2 space-y-2">
+              {failedJobs.map((job) => (
+                <div key={job.id} className="bg-base-100 px-3 py-2 rounded-md">
+                  <div className="text-sm font-medium truncate" title={job.filename}>
+                    {job.filename}
+                  </div>
+                  <div className="text-xs opacity-80 mt-0.5">
+                    {job.error_message || 'Processing failed'}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      className="btn btn-xs btn-outline"
+                      onClick={() => handleRetryFailedJob(job.id)}
+                    >
+                      Retry
+                    </button>
+                    <button
+                      className="btn btn-xs btn-ghost"
+                      onClick={() => dismissFailedJob(job.id)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

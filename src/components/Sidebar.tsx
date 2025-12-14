@@ -199,11 +199,14 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
       currentStep: "Uploading..."
     })));
 
-    // Start uploads and get job IDs
-    const uploadPromises = files.map(async (file, index) => {
+    // Start uploads with a small concurrency limit to avoid bursty rate limits.
+    const MAX_CONCURRENT_UPLOADS = 2;
+    let next = 0;
+
+    const runOne = async (file: File, index: number) => {
       try {
         const response = await processDocument(file, session.access_token);
-        
+
         // Update with job ID and start polling
         setResults((prev) => {
           const updated = [...prev];
@@ -218,10 +221,8 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
         const interval = setInterval(() => {
           pollJobStatus(response.job_id, index);
         }, 2000);
-        
-        pollingIntervals.current.set(response.job_id, interval);
 
-        return { success: true, index, jobId: response.job_id };
+        pollingIntervals.current.set(response.job_id, interval);
       } catch (err) {
         setResults((prev) => {
           const updated = [...prev];
@@ -231,11 +232,18 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
           }
           return updated;
         });
-        return { success: false, index, error: err };
+      }
+    };
+
+    const workers = Array.from({ length: Math.min(MAX_CONCURRENT_UPLOADS, files.length) }, async () => {
+      while (next < files.length) {
+        const index = next;
+        next += 1;
+        await runOne(files[index], index);
       }
     });
 
-    await Promise.allSettled(uploadPromises);
+    await Promise.allSettled(workers);
     input.value = "";
   };
 
