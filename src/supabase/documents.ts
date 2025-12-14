@@ -207,10 +207,11 @@ export async function getProcessingStatus(
 }
 
 // Get all active processing jobs for current user
-export async function getActiveProcessingJobs(): Promise<ProcessingJobStatus[]> {
+export async function getActiveProcessingJobs(userId: string): Promise<ProcessingJobStatus[]> {
   const { data, error } = await supabase
     .from("processing_jobs")
     .select("*")
+    .eq("user_id", userId)
     .in("status", ["pending", "parsing", "extracting_metadata", "uploading", "sectioning", "chunking", "embedding", "saving"])
     .order("created_at", { ascending: false });
 
@@ -223,10 +224,11 @@ export async function getActiveProcessingJobs(): Promise<ProcessingJobStatus[]> 
 }
 
 // Get recent failed processing jobs for current user
-export async function getRecentFailedProcessingJobs(limit = 10): Promise<ProcessingJobStatus[]> {
+export async function getRecentFailedProcessingJobs(userId: string, limit = 10): Promise<ProcessingJobStatus[]> {
   const { data, error } = await supabase
     .from("processing_jobs")
     .select("*")
+    .eq("user_id", userId)
     .eq("status", "failed")
     .order("created_at", { ascending: false })
     .limit(limit);
