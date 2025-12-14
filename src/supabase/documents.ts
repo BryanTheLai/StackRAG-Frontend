@@ -222,6 +222,38 @@ export async function getActiveProcessingJobs(): Promise<ProcessingJobStatus[]> 
   return (data as ProcessingJobStatus[]) || [];
 }
 
+// Get recent failed processing jobs for current user
+export async function getRecentFailedProcessingJobs(limit = 10): Promise<ProcessingJobStatus[]> {
+  const { data, error } = await supabase
+    .from("processing_jobs")
+    .select("*")
+    .eq("status", "failed")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching failed jobs:", error);
+    return [];
+  }
+
+  return (data as ProcessingJobStatus[]) || [];
+}
+
+export async function retryFailedProcessingJob(
+  jobId: string,
+  accessToken: string
+): Promise<{ success: boolean; job_id?: string; message?: string }>{
+  const res = await fetch(`${ENDPOINTS.DOCUMENTS}/retry/${jobId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 // Retry failed document by downloading from storage and re-uploading
 export async function retryFailedDocument(
   doc: DocumentData,

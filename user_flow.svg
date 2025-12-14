@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="858pt" height="123pt" viewBox="0.00 0.00 858.00 123.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 118.83)">
+<title>UserFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-118.83 853.81,-118.83 853.81,4 -4,4"/>
+<!-- start -->
+<g id="node1" class="node">
+<title>start</title>
+<ellipse fill="none" stroke="black" cx="39.8" cy="-54.08" rx="39.8" ry="39.8"/>
+<text xml:space="preserve" text-anchor="middle" x="39.8" y="-50.48" font-family="Times,serif" font-size="12.00">Open app</text>
+</g>
+<!-- login -->
+<g id="node2" class="node">
+<title>login</title>
+<path fill="none" stroke="black" d="M251.04,-72.08C251.04,-72.08 191.38,-72.08 191.38,-72.08 185.38,-72.08 179.38,-66.08 179.38,-60.08 179.38,-60.08 179.38,-48.08 179.38,-48.08 179.38,-42.08 185.38,-36.08 191.38,-36.08 191.38,-36.08 251.04,-36.08 251.04,-36.08 257.04,-36.08 263.04,-42.08 263.04,-48.08 263.04,-48.08 263.04,-60.08 263.04,-60.08 263.04,-66.08 257.04,-72.08 251.04,-72.08"/>
+<text xml:space="preserve" text-anchor="middle" x="221.21" y="-50.48" font-family="Times,serif" font-size="12.00">Login (/login)</text>
+</g>
+<!-- start&#45;&gt;login -->
+<g id="edge1" class="edge">
+<title>start-&gt;login</title>
+<path fill="none" stroke="black" d="M79.73,-54.08C105.55,-54.08 139.73,-54.08 167.91,-54.08"/>
+<polygon fill="black" stroke="black" points="167.66,-57.58 177.66,-54.08 167.66,-50.58 167.66,-57.58"/>
+<text xml:space="preserve" text-anchor="middle" x="129.5" y="-58.28" font-family="Times,serif" font-size="14.00">Go to login</text>
+</g>
+<!-- dashboard -->
+<g id="node3" class="node">
+<title>dashboard</title>
+<path fill="none" stroke="black" d="M556.43,-72.08C556.43,-72.08 412.15,-72.08 412.15,-72.08 406.15,-72.08 400.15,-66.08 400.15,-60.08 400.15,-60.08 400.15,-48.08 400.15,-48.08 400.15,-42.08 406.15,-36.08 412.15,-36.08 412.15,-36.08 556.43,-36.08 556.43,-36.08 562.43,-36.08 568.43,-42.08 568.43,-48.08 568.43,-48.08 568.43,-60.08 568.43,-60.08 568.43,-66.08 562.43,-72.08 556.43,-72.08"/>
+<text xml:space="preserve" text-anchor="middle" x="484.29" y="-50.48" font-family="Times,serif" font-size="12.00">Dashboard (/private/dashboard)</text>
+</g>
+<!-- login&#45;&gt;dashboard -->
+<g id="edge2" class="edge">
+<title>login-&gt;dashboard</title>
+<path fill="none" stroke="black" d="M263.29,-54.08C296.78,-54.08 345.39,-54.08 388.4,-54.08"/>
+<polygon fill="black" stroke="black" points="388.27,-57.58 398.27,-54.08 388.27,-50.58 388.27,-57.58"/>
+<text xml:space="preserve" text-anchor="middle" x="331.59" y="-58.28" font-family="Times,serif" font-size="14.00">Successful sign in</text>
+</g>
+<!-- importpdf -->
+<g id="node4" class="node">
+<title>importpdf</title>
+<path fill="none" stroke="black" d="M834.66,-105.08C834.66,-105.08 739.34,-105.08 739.34,-105.08 733.34,-105.08 727.34,-99.08 727.34,-93.08 727.34,-93.08 727.34,-81.08 727.34,-81.08 727.34,-75.08 733.34,-69.08 739.34,-69.08 739.34,-69.08 834.66,-69.08 834.66,-69.08 840.66,-69.08 846.66,-75.08 846.66,-81.08 846.66,-81.08 846.66,-93.08 846.66,-93.08 846.66,-99.08 840.66,-105.08 834.66,-105.08"/>
+<text xml:space="preserve" text-anchor="middle" x="787" y="-83.48" font-family="Times,serif" font-size="12.00">Import PDF (sidebar)</text>
+</g>
+<!-- dashboard&#45;&gt;importpdf -->
+<g id="edge3" class="edge">
+<title>dashboard-&gt;importpdf</title>
+<path fill="none" stroke="black" d="M524.22,-72.46C542.64,-80.17 565.2,-88.23 586.43,-92.08 628.95,-99.81 677.39,-98.82 715.9,-95.78"/>
+<polygon fill="black" stroke="black" points="715.83,-99.29 725.5,-94.95 715.23,-92.32 715.83,-99.29"/>
+<text xml:space="preserve" text-anchor="middle" x="646.31" y="-102.23" font-family="Times,serif" font-size="14.00">Import financial PDF</text>
+</g>
+<!-- chat -->
+<g id="node5" class="node">
+<title>chat</title>
+<path fill="none" stroke="black" d="M837.81,-38.08C837.81,-38.08 736.18,-38.08 736.18,-38.08 730.18,-38.08 724.18,-32.08 724.18,-26.08 724.18,-26.08 724.18,-14.08 724.18,-14.08 724.18,-8.08 730.18,-2.08 736.18,-2.08 736.18,-2.08 837.81,-2.08 837.81,-2.08 843.81,-2.08 849.81,-8.08 849.81,-14.08 849.81,-14.08 849.81,-26.08 849.81,-26.08 849.81,-32.08 843.81,-38.08 837.81,-38.08"/>
+<text xml:space="preserve" text-anchor="middle" x="787" y="-16.48" font-family="Times,serif" font-size="12.00">Chat (/private/chat/:id)</text>
+</g>
+<!-- dashboard&#45;&gt;chat -->
+<g id="edge5" class="edge">
+<title>dashboard-&gt;chat</title>
+<path fill="none" stroke="black" d="M568.86,-41.52C574.8,-40.73 580.7,-39.98 586.43,-39.28 628.08,-34.23 674.75,-29.68 712.48,-26.28"/>
+<polygon fill="black" stroke="black" points="712.73,-29.77 722.38,-25.4 712.11,-22.8 712.73,-29.77"/>
+<text xml:space="preserve" text-anchor="middle" x="646.31" y="-43.48" font-family="Times,serif" font-size="14.00">Open chat</text>
+</g>
+<!-- importpdf&#45;&gt;dashboard -->
+<g id="edge4" class="edge">
+<title>importpdf-&gt;dashboard</title>
+<path fill="none" stroke="black" d="M726.85,-74.57C719.91,-73.34 712.9,-72.21 706.18,-71.28 665,-65.62 619.21,-61.68 580.06,-59"/>
+<polygon fill="black" stroke="black" points="580.38,-55.52 570.17,-58.35 579.92,-62.5 580.38,-55.52"/>
+<text xml:space="preserve" text-anchor="middle" x="646.31" y="-75.48" font-family="Times,serif" font-size="14.00">Processing complete</text>
+</g>
+<!-- chat&#45;&gt;dashboard -->
+<g id="edge6" class="edge">
+<title>chat-&gt;dashboard</title>
+<path fill="none" stroke="black" d="M723.72,-6.65C684,-0.32 631.67,3.87 586.43,-6.28 565.1,-11.07 542.98,-20.88 524.88,-30.38"/>
+<polygon fill="black" stroke="black" points="523.45,-27.18 516.33,-35.02 526.79,-33.33 523.45,-27.18"/>
+<text xml:space="preserve" text-anchor="middle" x="646.31" y="-10.48" font-family="Times,serif" font-size="14.00">Back via sidebar</text>
+</g>
+</g>
+</svg>

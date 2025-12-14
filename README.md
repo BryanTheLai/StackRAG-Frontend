@@ -219,3 +219,16 @@ frontend/
     ├── main.tsx                # Application entry point
     └── index.css               # Global styles and Tailwind/DaisyUI config
 ```
+
+## 📘 FYP Report – Chapter 5 (Implementation & Testing)
+
+For academic documentation, a dedicated Chapter 5 draft in markdown is included in this repository:
+
+- **File**: `chapter5.md`
+- **Purpose**:
+  - Provide a concise base text for the FYP Implementation and Testing chapter.
+  - Be the place where you document key code snippets that show how requirements are met (e.g. auth, RLS, ingestion, chat streaming).
+  - Capture important configuration settings (server URL, network endpoints, database/RLS security, environment variables).
+  - List all test cases in tables, covering authentication, document ingestion, RAG chat, security, and performance.
+
+You can copy and extend this file when preparing the FYP report section on Implementation and Testing to match your faculty’s format.
