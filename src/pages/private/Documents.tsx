@@ -50,15 +50,22 @@ export default function Documents() {
   // Processing jobs state
   const [activeJobs, setActiveJobs] = useState<ProcessingJobStatus[]>([]);
   const [failedJobs, setFailedJobs] = useState<ProcessingJobStatus[]>([]);
-  const [dismissedFailedJobIds, setDismissedFailedJobIds] = useState<Set<string>>(() => {
+  const dismissedFailedJobsKey = (userId: string) =>
+    `dismissed_failed_processing_job_ids:${userId}`;
+
+  const readDismissedFailedJobIds = (userId?: string): Set<string> => {
+    if (typeof window === "undefined") return new Set();
+    if (!userId) return new Set();
     try {
-      const raw = localStorage.getItem("dismissed_failed_processing_job_ids");
-      const parsed = raw ? (JSON.parse(raw) as string[]) : [];
-      return new Set(parsed);
+      const raw = window.localStorage?.getItem(dismissedFailedJobsKey(userId));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(parsed) ? (parsed as string[]) : []);
     } catch {
       return new Set();
     }
-  });
+  };
+
+  const [, setDismissedFailedJobIds] = useState<Set<string>>(() => new Set());
 
   // PDF viewer state
   const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
@@ -96,12 +103,13 @@ export default function Documents() {
     if (!session) return;
 
     const loadJobs = async () => {
+      const dismissed = readDismissedFailedJobIds(session.user.id);
       const [jobs, failed] = await Promise.all([
-        getActiveProcessingJobs(),
-        getRecentFailedProcessingJobs(10),
+        getActiveProcessingJobs(session.user.id),
+        getRecentFailedProcessingJobs(session.user.id, 10),
       ]);
       setActiveJobs(jobs);
-      setFailedJobs(failed.filter((j) => !dismissedFailedJobIds.has(j.id)));
+      setFailedJobs(failed.filter((j) => !dismissed.has(j.id)));
     };
 
     // Load immediately
@@ -115,12 +123,14 @@ export default function Documents() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [session, dismissedFailedJobIds]);
+  }, [session]);
 
-  const persistDismissedFailedJobs = (ids: Set<string>) => {
+  const persistDismissedFailedJobs = (userId: string, ids: Set<string>) => {
+    if (typeof window === "undefined") return;
+    if (!userId) return;
     try {
-      localStorage.setItem(
-        "dismissed_failed_processing_job_ids",
+      window.localStorage?.setItem(
+        dismissedFailedJobsKey(userId),
         JSON.stringify(Array.from(ids))
       );
     } catch {
@@ -129,22 +139,22 @@ export default function Documents() {
   };
 
   const dismissFailedJob = (jobId: string) => {
-    setDismissedFailedJobIds((prev) => {
-      const next = new Set(prev);
-      next.add(jobId);
-      persistDismissedFailedJobs(next);
-      return next;
-    });
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const next = readDismissedFailedJobIds(userId);
+    next.add(jobId);
+    persistDismissedFailedJobs(userId, next);
+    setDismissedFailedJobIds(next);
     setFailedJobs((prev) => prev.filter((j) => j.id !== jobId));
   };
 
   const dismissAllFailedJobs = () => {
-    setDismissedFailedJobIds((prev) => {
-      const next = new Set(prev);
-      for (const j of failedJobs) next.add(j.id);
-      persistDismissedFailedJobs(next);
-      return next;
-    });
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const next = readDismissedFailedJobIds(userId);
+    for (const j of failedJobs) next.add(j.id);
+    persistDismissedFailedJobs(userId, next);
+    setDismissedFailedJobIds(next);
     setFailedJobs([]);
   };
 
