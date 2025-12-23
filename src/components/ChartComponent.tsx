@@ -55,29 +55,53 @@ const DEFAULT_DATA_KEYS = {
   area: 'value',
 };
 
+const findFirstNumericKey = (items: ChartData['data'], excludeKeys: string[] = ['name']) => {
+  const first = items?.[0];
+  if (!first) return undefined;
+  for (const [key, value] of Object.entries(first)) {
+    if (excludeKeys.includes(key)) continue;
+    if (typeof value === 'number') return key;
+  }
+  return undefined;
+};
+
+const resolveSimpleDataKey = (items: ChartData['data'], preferredKey: string | undefined) => {
+  const first = items?.[0];
+  if (!first) return preferredKey || DEFAULT_DATA_KEYS.bar;
+  if (preferredKey && first[preferredKey] !== undefined) return preferredKey;
+  if (first.value !== undefined) return 'value';
+  return findFirstNumericKey(items) || preferredKey || 'value';
+};
+
 // Helper function to render Bar Chart
-const renderBarChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => (
+const renderBarChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => {
+  const resolvedKey = resolveSimpleDataKey(chartData, dataKeys?.bar || DEFAULT_DATA_KEYS.bar);
+  return (
   <BarChart data={chartData}>
     <CartesianGrid {...CHART_STYLES.grid} />
     <XAxis dataKey="name" {...CHART_STYLES.axis} />
     <YAxis {...CHART_STYLES.axis} />
     <Tooltip {...CHART_STYLES.tooltip} />
     <Legend {...CHART_STYLES.legend} />
-    <Bar dataKey={dataKeys?.bar || DEFAULT_DATA_KEYS.bar} fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+    <Bar dataKey={resolvedKey} fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
   </BarChart>
-);
+  );
+};
 
 // Helper function to render Line Chart
-const renderLineChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => (
+const renderLineChartInternal = (chartData: ChartData['data'], dataKeys: ChartData['data_keys']) => {
+  const resolvedKey = resolveSimpleDataKey(chartData, dataKeys?.line || DEFAULT_DATA_KEYS.line);
+  return (
   <LineChart data={chartData}>
     <CartesianGrid {...CHART_STYLES.grid} />
     <XAxis dataKey="name" {...CHART_STYLES.axis} />
     <YAxis {...CHART_STYLES.axis} />
     <Tooltip {...CHART_STYLES.tooltip} />
     <Legend {...CHART_STYLES.legend} />
-    <Line type="monotone" dataKey={dataKeys?.line || DEFAULT_DATA_KEYS.line} stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+    <Line type="monotone" dataKey={resolvedKey} stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
   </LineChart>
-);
+  );
+};
 
 // Helper function to render Pie Chart
 const renderPieChartInternal = (
@@ -87,6 +111,7 @@ const renderPieChartInternal = (
 ) => {
   const actualDataKey = pieConfig?.data_key || fallbackDataKeyFromDataKeys || DEFAULT_DATA_KEYS.pie;
   const actualNameKey = pieConfig?.label_key; // If undefined, Recharts Pie defaults to 'name'
+  const resolvedDataKey = resolveSimpleDataKey(chartDataItems, actualDataKey);
 
   return (
   <PieChart>
@@ -100,7 +125,7 @@ const renderPieChartInternal = (
       label={({ name, percent, value }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
       outerRadius="80%"
       fill={CHART_COLORS[2]} // Base fill, overridden by Cells
-      dataKey={actualDataKey}
+      dataKey={resolvedDataKey}
       nameKey={actualNameKey} // Use the resolved nameKey
     >
       {chartDataItems.map((_entry, index) => (
@@ -121,6 +146,19 @@ const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: Cha
   const hasDataForKey = (keyToCheck: string) =>
     chartData.length > 0 && chartData[0]?.[keyToCheck] !== undefined;
 
+  const inferredNumericKeys = (() => {
+    const first = chartData?.[0];
+    if (!first) return [];
+    return Object.entries(first)
+      .filter(([key, value]) => key !== 'name' && typeof value === 'number')
+      .map(([key]) => key);
+  })();
+
+  const hasAnyConfiguredKey = [...barKeys, ...lineKeys, ...areaKeys].some(hasDataForKey);
+  const finalBarKeys = hasAnyConfiguredKey ? barKeys : inferredNumericKeys;
+  const finalLineKeys = hasAnyConfiguredKey ? lineKeys : [];
+  const finalAreaKeys = hasAnyConfiguredKey ? areaKeys : [];
+
   return (
     <ComposedChart data={chartData}>
       <CartesianGrid {...CHART_STYLES.grid} />
@@ -128,14 +166,14 @@ const renderComposedChartInternal = (chartData: ChartData['data'], dataKeys: Cha
       <YAxis {...CHART_STYLES.axis} />
       <Tooltip {...CHART_STYLES.tooltip} />
       <Legend {...CHART_STYLES.legend} />
-      {barKeys.map((key, index) => hasDataForKey(key) && (
+      {finalBarKeys.map((key, index) => hasDataForKey(key) && (
         <Bar key={`bar-${key}`} dataKey={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
       ))}
-      {lineKeys.map((key, index) => hasDataForKey(key) && (
-        <Line key={`line-${key}`} type="monotone" dataKey={key} stroke={CHART_COLORS[(barKeys.length + index) % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+      {finalLineKeys.map((key, index) => hasDataForKey(key) && (
+        <Line key={`line-${key}`} type="monotone" dataKey={key} stroke={CHART_COLORS[(finalBarKeys.length + index) % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
       ))}
-      {areaKeys.map((key, index) => hasDataForKey(key) && (
-        <Area key={`area-${key}`} type="monotone" dataKey={key} fill={CHART_COLORS[(barKeys.length + lineKeys.length + index) % CHART_COLORS.length]} stroke={CHART_COLORS[(barKeys.length + lineKeys.length + index) % CHART_COLORS.length]} fillOpacity={0.6} />
+      {finalAreaKeys.map((key, index) => hasDataForKey(key) && (
+        <Area key={`area-${key}`} type="monotone" dataKey={key} fill={CHART_COLORS[(finalBarKeys.length + finalLineKeys.length + index) % CHART_COLORS.length]} stroke={CHART_COLORS[(finalBarKeys.length + finalLineKeys.length + index) % CHART_COLORS.length]} fillOpacity={0.6} />
       ))}
     </ComposedChart>
   );

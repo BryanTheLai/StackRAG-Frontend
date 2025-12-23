@@ -135,9 +135,17 @@ export const SmartPromptSuggestions: React.FC<SmartPromptSuggestionsProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {displayedSuggestions.map((suggestion, index) => (
             <div key={index} className="group relative">
-              <button
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => handleSuggestionClick(suggestion.text)}
-                className="w-full text-left p-3 rounded-lg border border-base-300 bg-base-100 hover:bg-base-200 hover:border-primary/30 transition-all duration-200 flex items-center gap-3 group-hover:shadow-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSuggestionClick(suggestion.text);
+                  }
+                }}
+                className="w-full text-left p-3 rounded-lg border border-base-300 bg-base-100 hover:bg-base-200 hover:border-primary/30 transition-all duration-200 flex items-center gap-3 group-hover:shadow-sm cursor-pointer"
               >
                 <span className="text-primary flex-shrink-0">
                   {suggestion.icon}
@@ -156,7 +164,7 @@ export const SmartPromptSuggestions: React.FC<SmartPromptSuggestionsProps> = ({
                     />
                   </div>
                 )}
-              </button>
+              </div>
               
               {/* Tooltip */}
               {suggestion.tooltip && (

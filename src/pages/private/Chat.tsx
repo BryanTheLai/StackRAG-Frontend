@@ -504,14 +504,17 @@ export default function Chat() {
                 );
               } else if (pdfNavData) {
                 // If pdfNavData is not null, it's a valid PDF navigation block
+                const canOpenPdf = Boolean(pdfNavData.documentId && pdfNavData.documentId.trim().length > 0);
                 return (
                   <div key={`${partIndex}-${contentPartIndex}-pdfnav`} className="my-3">
                     <button
                       onClick={() => {
+                        if (!canOpenPdf) return;
                         setSelectedPDFData(pdfNavData);
                         setShowPDFViewer(true);
                       }}
-                      className="btn btn-outline btn-sm gap-2 hover:btn-primary"
+                      className={`btn btn-outline btn-sm gap-2 ${canOpenPdf ? 'hover:btn-primary' : 'opacity-60 cursor-not-allowed'}`}
+                      disabled={!canOpenPdf}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -520,11 +523,16 @@ export default function Chat() {
                         <line x1="16" y1="17" x2="8" y2="17"/>
                         <polyline points="10,9 9,9 8,9"/>
                       </svg>
-                      {pdfNavData.filename} - Page {pdfNavData.page}
+                      {(pdfNavData.filename || 'No document')} - Page {pdfNavData.page}
                     </button>
                     {pdfNavData.context && (
                       <p className="text-sm text-base-content/70 mt-2 italic">
                         {pdfNavData.context}
+                      </p>
+                    )}
+                    {!canOpenPdf && (
+                      <p className="text-xs text-warning mt-1">
+                        PDF link unavailable (missing documentId).
                       </p>
                     )}
                   </div>
