@@ -2,7 +2,7 @@
 
 # 🏦 StackRAG - Frontend
 
-**A Modern, Data-Driven React Interface for Financial AI**
+**A Modern, Data-Driven React Interface for Financial AI **
 
 [![React 19](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.3+-purple.svg)](https://vitejs.dev/)
