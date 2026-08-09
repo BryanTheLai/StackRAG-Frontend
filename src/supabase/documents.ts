@@ -17,7 +17,7 @@ export interface DocumentData {
   report_date: string | null;
   doc_year: number | null;
   doc_quarter: number | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // Legacy interface for backward compatibility
@@ -32,12 +32,16 @@ export async function fetchDocuments(
   searchTerm?: string,
   docId?: string | null
 ): Promise<DocumentData[]> {
+  // Omit heavy full_markdown_content from list queries to reduce network payload (P2-07)
+  const selectFields = docId
+    ? "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content, storage_path, company_name, report_date, doc_year, doc_quarter, metadata"
+    : "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, storage_path, company_name, report_date, doc_year, doc_quarter, metadata";
+
   const query = supabase
     .from("documents")
-    .select(
-      "id, filename, upload_timestamp, status, doc_type, doc_specific_type, doc_summary, full_markdown_content, storage_path, company_name, report_date, doc_year, doc_quarter, metadata"
-    )
+    .select(selectFields)
     .order("upload_timestamp", { ascending: false });
+
 
   // Filter by specific document ID or search term
   if (docId) {
@@ -51,8 +55,9 @@ export async function fetchDocuments(
     throw new Error(`Error fetching documents: ${error.message}`);
   }
 
-  return (data as DocumentData[]) || [];
+  return (data as unknown as DocumentData[]) || [];
 }
+
 
 // Update document metadata
 export async function updateDocument(
@@ -185,8 +190,9 @@ export interface ProcessingJobStatus {
   error_message?: string;
   error_code?: string; // NEW: Technical error code for categorization (api_key_invalid, file_corrupted, etc)
   retry_count: number; // NEW: How many times user has retried
-  result_data?: any;
+  result_data?: unknown;
   created_at: string;
+
   updated_at: string;
   completed_at?: string;
 }

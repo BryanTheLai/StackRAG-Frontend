@@ -29,68 +29,66 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
+    let createdBlobUrl = "";
+    let isCancelled = false;
+
+    const loadPDF = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const hasAccess = await verifyDocumentAccess(documentId);
+        if (!hasAccess) {
+          throw new Error('Document not found or access denied');
+        }
+
+        const { data: docData, error: docError } = await supabase
+          .from('documents')
+          .select('storage_path')
+          .eq('id', documentId)
+          .single();
+
+        if (docError || !docData) {
+          throw new Error('Document not found');
+        }
+
+        const { data: fileData, error: storageError } = await supabase.storage
+          .from('financial-pdfs')
+          .download(docData.storage_path);
+
+        if (storageError || !fileData) {
+          throw new Error('Failed to load PDF file');
+        }
+
+        if (isCancelled) return;
+
+        const arrayBuffer = await fileData.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+        createdBlobUrl = URL.createObjectURL(blob);
+        const urlWithPage = initialPage > 1 ? `${createdBlobUrl}#page=${initialPage}` : createdBlobUrl;
+        setPdfUrl(urlWithPage);
+      } catch (err: unknown) {
+        if (!isCancelled) {
+          console.error('Error loading PDF:', err);
+          setError(err instanceof Error ? err.message : 'Failed to load PDF');
+        }
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    };
+
     if (isOpen && documentId) {
       loadPDF();
     }
+
     return () => {
-      // Cleanup blob URL when component unmounts or closes
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
+      isCancelled = true;
+      if (createdBlobUrl) {
+        URL.revokeObjectURL(createdBlobUrl);
       }
     };
-  }, [isOpen, documentId]);
+  }, [isOpen, documentId, initialPage]);
 
-  const loadPDF = async () => {
-    setLoading(true);
-    setError("");
-    
-    try {
-      // First verify document access
-      const hasAccess = await verifyDocumentAccess(documentId);
-      if (!hasAccess) {
-        throw new Error('Document not found or access denied');
-      }
-
-      // Get the document to find its storage path
-      const { data: docData, error: docError } = await supabase
-        .from('documents')
-        .select('storage_path')
-        .eq('id', documentId)
-        .single();
-
-      if (docError || !docData) {
-        throw new Error('Document not found');
-      }
-
-      // Download the PDF from storage
-      const { data: fileData, error: storageError } = await supabase.storage
-        .from('financial-pdfs')
-        .download(docData.storage_path);
-
-      if (storageError || !fileData) {
-        throw new Error('Failed to load PDF file');
-      }
-
-      // Convert to base64 data URI like in Documents.tsx
-      const arrayBuffer = await fileData.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ''
-        )
-      );
-      const url = `data:application/pdf;base64,${base64}`;
-      
-      // Add page parameter to URL for navigation
-      const urlWithPage = initialPage > 1 ? `${url}#page=${initialPage}` : url;
-      setPdfUrl(urlWithPage);
-    } catch (err: any) {
-      console.error('Error loading PDF:', err);
-      setError(err.message || 'Failed to load PDF');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

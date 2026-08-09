@@ -18,8 +18,9 @@ export interface AppSettings {
   chartType?: 'bar' | 'line';
   
   // Other flexible settings
-  [key: string]: any;
+  [key: string]: unknown;
 }
+
 
 export interface Profile {
   full_name: string | null;

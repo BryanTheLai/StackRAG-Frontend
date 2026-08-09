@@ -3,7 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import { Send, MessageSquare, ArrowLeft, X } from "lucide-react";
 import { ENDPOINTS } from "@/config/api";
-import { useRoute, Link } from "wouter";
+import { useRoute, useLocation, Link } from "wouter";
+
 import type { ChatMessage } from "@/supabase/chatService";
 import {
   fetchChatSessionById,
@@ -84,8 +85,10 @@ const decodeHtmlEntities = (html: string): string => {
 export default function Chat() {
   // Authentication and routing
   const { user, session, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [, params] = useRoute("/private/chat/:id");
   const chatId = params?.id;
+
 
   // Chat state
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -283,16 +286,30 @@ export default function Chat() {
         while ((idx = buffer.indexOf("\n\n")) >= 0) {
           const chunk = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
-          if (chunk.startsWith("event: stream_end")) {
+          
+          let eventType = "message.delta";
+          let dataStr = "";
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataStr = line.slice(6).trim();
+            }
+          }
+
+          if (eventType === "message.completed" || chunk.startsWith("event: stream_end")) {
             if (inTag) text += tagBuffer;
             break;
           }
-          if (chunk.startsWith("data: ")) {
+
+          if (dataStr) {
             try {
-              const d = JSON.parse(chunk.slice(6));
-              if (d.text_chunk) {
+              const d = JSON.parse(dataStr);
+              if (d.delta || d.text_chunk) {
+                const chunkText = d.delta || d.text_chunk;
                 const result = processTextChunk(
-                  d.text_chunk,
+                  chunkText,
                   text,
                   tagBuffer,
                   inTag,
@@ -303,11 +320,15 @@ export default function Chat() {
                 tagBuffer = result.nextTagBuffer;
                 inTag = result.nextInTag;
                 tagCfg = result.nextTagCfg;
+              } else if (d.session_id && eventType === "message.started") {
+                if (!chatId) setLocation(`/private/chat/${d.session_id}`);
               }
-            } catch {}
+
+            } catch {
+              // Ignore non-JSON chunk
+            }
           }
         }
-        if (buffer.includes("event: stream_end")) break;
       }
       if (inTag) text += tagBuffer;
       const final: ChatMessage = { kind: "response", parts: [{ content: text, part_kind: "text", timestamp: new Date().toISOString() }] };
@@ -331,7 +352,6 @@ export default function Chat() {
 
     setChatHistory((prev) => {
       const updated = [...prev];
-      // Remove placeholder if it exists
       if (
         updated.length > 0 &&
         updated[updated.length - 1].parts[0].content === ""
@@ -348,6 +368,7 @@ export default function Chat() {
     });
     setError(errorMessage);
   };
+
   const sendMessage = async () => {
     if (!inputMessage.trim() || isStreaming || !session) return;
 
@@ -355,12 +376,8 @@ export default function Chat() {
     setLastQuery(content);
     const userMessage = createUserMessage(content);
     const placeholder = createPlaceholderMessage();
-    const currentHistory = [...chatHistory, userMessage];
 
-    // Hide suggestions when user starts chatting
     setShowSuggestions(false);
-
-    // Update UI immediately
     setChatHistory((prev) => [...prev, userMessage, placeholder]);
     setInputMessage("");
     setIsStreaming(true);
@@ -373,7 +390,7 @@ export default function Chat() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ history: currentHistory }),
+        body: JSON.stringify({ session_id: chatId || null, message: content }),
       });
 
       if (!response.ok || !response.body) {
@@ -383,13 +400,15 @@ export default function Chat() {
         );
       }
 
-      await handleStreamingResponse(response, currentHistory);
+      await handleStreamingResponse(response, [...chatHistory, userMessage]);
     } catch (error) {
+      setInputMessage(content); // Retain input on failure for easy retry (P1-14)
       handleChatError(error);
     } finally {
       setIsStreaming(false);
     }
   };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -545,12 +564,13 @@ export default function Chat() {
                       key={`${partIndex}-${contentPartIndex}`}
                       remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={{
-                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-focus" />,
-                        table: ({node, ...props}) => <table {...props} className="w-full border border-base-300 my-4 bg-base-100 text-sm" />,
-                        thead: ({node, ...props}) => <thead {...props} className="" />,
-                        th: ({node, ...props}) => <th {...props} className="border border-base-300 font-semibold p-2 text-left bg-base-100 text-base-content" />,
-                        td: ({node, ...props}) => <td {...props} className="border border-base-200 p-2 text-base-content/80" />,
-                        tr: ({node, ...props}) => <tr {...props} className="" />
+                        a: (props) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-focus" />,
+                        table: (props) => <table {...props} className="w-full border border-base-300 my-4 bg-base-100 text-sm" />,
+                        thead: (props) => <thead {...props} className="" />,
+                        th: (props) => <th {...props} className="border border-base-300 font-semibold p-2 text-left bg-base-100 text-base-content" />,
+                        td: (props) => <td {...props} className="border border-base-200 p-2 text-base-content/80" />,
+                        tr: (props) => <tr {...props} className="" />
+
                       }}
                     >
                       {contentPart}

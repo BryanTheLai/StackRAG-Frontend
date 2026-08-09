@@ -80,9 +80,10 @@ export default function Documents() {
   const detailModalRef = useRef<HTMLDialogElement>(null);
 
   // Callback to refresh documents after import
-  const handleFilesImported = (_files: File[]) => {
+  const handleFilesImported = () => {
     setRefreshFlag((f) => f + 1);
   };
+
 
   // Fetch documents from Supabase
   useEffect(() => {
@@ -280,20 +281,16 @@ export default function Documents() {
         .from('financial-pdfs')
         .download(storagePath);
       if (error || !fileData) throw error || new Error('No file returned');
-      // Convert blob to base64 data URI
       const arrayBuffer = await fileData.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ''
-        )
-      );
-      const url = `data:application/pdf;base64,${base64}`;
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       setShowPdfViewer(true);
-    } catch (err: any) {
+
+    } catch (err: unknown) {
       console.error('Error loading PDF:', err);
-      setPdfError(err.message || 'Failed to load PDF');
+      const msg = err instanceof Error ? err.message : 'Failed to load PDF';
+      setPdfError(msg);
     } finally {
       setPdfLoading(false);
     }
@@ -317,11 +314,12 @@ export default function Documents() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }, 100);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error downloading PDF:', err);
       setPdfError('Failed to download PDF');
     }
   };
+
 
   // Close PDF viewer and revoke object URL
   const closePdfViewer = () => {

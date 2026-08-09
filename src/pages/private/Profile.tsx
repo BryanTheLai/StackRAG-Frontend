@@ -41,10 +41,11 @@ export default function ProfilePage() {
     if (newValue === profile[field]) return;
     try {
       await supabase.from('profiles').update({ [field]: newValue }).eq('id', user.id);
-      setProfile(prev => prev ? { ...prev, [field]: newValue as any } : prev);
+      setProfile(prev => prev ? { ...prev, [field]: newValue } : prev);
       setNotification({ id: Date.now(), message: `${field.replace('_', ' ')} saved` });
-    } catch (e: any) {
-      setNotification({ id: Date.now(), message: `Error saving ${field}: ${e.message}` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setNotification({ id: Date.now(), message: `Error saving ${field}: ${msg}` });
     }
   };
 
@@ -67,7 +68,7 @@ export default function ProfilePage() {
   }
 
   // Helper to update app settings
-  const handleSettingUpdate = async (key: keyof AppSettings, value: any) => {
+  const handleSettingUpdate = async (key: keyof AppSettings, value: string | boolean) => {
     if (!user || !profile) return;
     
     const updatedSettings = {
@@ -80,10 +81,12 @@ export default function ProfilePage() {
       await supabase.from('profiles').update({ app_settings: updatedSettings }).eq('id', user.id);
       setProfile(prev => prev ? { ...prev, app_settings: updatedSettings } : prev);
       setNotification({ id: Date.now(), message: `${key} updated` });
-    } catch (e: any) {
-      setNotification({ id: Date.now(), message: `Error updating ${key}: ${e.message}` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setNotification({ id: Date.now(), message: `Error updating ${key}: ${msg}` });
     }
   };
+
 
   const settings = { ...DEFAULT_APP_SETTINGS, ...(profile?.app_settings || {}) };
 

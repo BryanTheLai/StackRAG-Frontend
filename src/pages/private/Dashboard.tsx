@@ -62,7 +62,23 @@ const calculateAndFormatPercentage = (current: number | null | undefined, previo
   return `${(percentage * 100).toFixed(2)}%`;
 };
 
-const DashboardChartTooltip = ({ active, payload, label, formatCurrency, fallbackCurrency }: any) => {
+interface ChartTooltipItem {
+  value?: number | string | null;
+  payload?: {
+    currency?: string;
+  };
+  name?: string;
+}
+
+interface DashboardChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipItem[];
+  label?: string;
+  formatCurrency: (amount: number | null | undefined, currency?: string) => string;
+  fallbackCurrency?: string;
+}
+
+const DashboardChartTooltip = ({ active, payload, label, formatCurrency, fallbackCurrency }: DashboardChartTooltipProps) => {
   if (!active || !payload || payload.length === 0) return null;
 
   const currencyFromRow = payload?.[0]?.payload?.currency;
@@ -72,18 +88,14 @@ const DashboardChartTooltip = ({ active, payload, label, formatCurrency, fallbac
     <div className="rounded-box border border-base-300 bg-base-100 shadow-lg px-3 py-2 text-sm text-base-content">
       <div className="font-semibold mb-1">{label}</div>
       <div className="space-y-1">
-        {payload.map((item: any) => {
+        {payload.map((item: ChartTooltipItem, idx: number) => {
           const value = item?.value;
           const displayValue = (value === null || value === undefined)
             ? 'N/A'
             : (typeof value === 'number' ? formatCurrency(value, currency) : String(value));
-
           return (
-            <div key={String(item?.dataKey ?? item?.name)} className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item?.color }} />
-                <span className="text-base-content/80 truncate">{item?.name}</span>
-              </div>
+            <div key={String(item?.name || idx)} className="flex items-center justify-between gap-4">
+              <span className="text-base-content/80 truncate">{item?.name}</span>
               <span className="font-medium tabular-nums">{displayValue}</span>
             </div>
           );
@@ -92,6 +104,7 @@ const DashboardChartTooltip = ({ active, payload, label, formatCurrency, fallbac
     </div>
   );
 };
+
 
 export default function Dashboard() {
   const { session, user } = useAuth(); 
@@ -224,9 +237,10 @@ export default function Dashboard() {
             setSelectedPeriod(ALL_TIME_OPTION);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching available periods:", error);
-      setErrorMsg(`Error loading periods: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      setErrorMsg(`Error loading periods: ${msg}`);
       setPeriodOptions([ALL_TIME_OPTION]);
       if (!selectedPeriod) setSelectedPeriod(ALL_TIME_OPTION);
     } finally {
@@ -275,12 +289,14 @@ export default function Dashboard() {
         setAllPreviousYearSummaries([]);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching summaries:", error);
-      setErrorMsg(`Error fetching summaries: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      setErrorMsg(`Error fetching summaries: ${msg}`);
     } finally {
       setBusy(false);
     }
+
   }, [session, user, fetchIncomeStatementSummariesData, aggregateMonthlySummaries]);
 
   useEffect(() => {
@@ -585,9 +601,9 @@ export default function Dashboard() {
                   />
                   <Tooltip 
                     cursor={{ fill: 'hsl(var(--bc) / 0.06)' }}
-                    content={(props: any) => (
+                    content={(props: unknown) => (
                       <DashboardChartTooltip
-                        {...props}
+                        {...(props as DashboardChartTooltipProps)}
                         formatCurrency={formatCurrency}
                         fallbackCurrency={settings.currency}
                       />
@@ -621,14 +637,15 @@ export default function Dashboard() {
                   />
                   <Tooltip 
                     cursor={{ fill: 'hsl(var(--bc) / 0.06)' }}
-                    content={(props: any) => (
+                    content={(props: unknown) => (
                       <DashboardChartTooltip
-                        {...props}
+                        {...(props as DashboardChartTooltipProps)}
                         formatCurrency={formatCurrency}
                         fallbackCurrency={settings.currency}
                       />
                     )}
                   />
+
                   <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px', color: 'hsl(var(--bc) / 0.8)' }} />
                   <Line type="monotone" dataKey="total_revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 6 }} name="Total Revenue" dot={false} isAnimationActive={false}/>
                   <Line type="monotone" dataKey="total_expenses" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 6 }} name="Total Expenses" dot={false} isAnimationActive={false}/>

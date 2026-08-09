@@ -75,7 +75,8 @@ export default function Signup() {
       });
 
       // If Supabase auto-creates a session (email confirmation disabled), go to dashboard
-      if (res && (res as any).session) {
+      if (res && res.session) {
+
         navigate("/private/dashboard", { replace: true });
         return;
       }

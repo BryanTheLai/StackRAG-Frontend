@@ -64,10 +64,11 @@ export function formatCurrency(
       currency,
       signDisplay,
     });
-  } catch (e) {
+  } catch {
     // Fallback if currency code is invalid
     return `${currency} ${amount.toFixed(2)}`;
   }
+
 }
 
 /**

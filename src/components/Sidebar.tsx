@@ -249,11 +249,13 @@ export default function Sidebar({ onFilesImported }: SidebarProps) {
 
   // Cleanup polling intervals on unmount
   useEffect(() => {
+    const intervals = pollingIntervals.current;
     return () => {
-      pollingIntervals.current.forEach((interval) => clearInterval(interval));
-      pollingIntervals.current.clear();
+      intervals.forEach((interval) => clearInterval(interval));
+      intervals.clear();
     };
   }, []);
+
 
   // local component for Chat History dropdown trigger
   const ToggleIcon = collapsed ? Menu : X;

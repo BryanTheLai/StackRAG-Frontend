@@ -4,13 +4,13 @@ import { supabase } from "./client";
 export interface ChatMessagePart {
   content: string;
   timestamp?: string;
-  dynamic_ref?: any | null;
+  dynamic_ref?: unknown;
   part_kind: "system-prompt" | "user-prompt" | "text";
 }
 
 export interface ChatMessage {
   parts: Array<ChatMessagePart>;
-  instructions?: any | null;
+  instructions?: unknown;
   kind: "request" | "response";
   usage?: {
     requests: number;
@@ -21,7 +21,7 @@ export interface ChatMessage {
   };
   model_name?: string;
   timestamp?: string;
-  vendor_details?: any | null;
+  vendor_details?: unknown;
   vendor_id?: string;
 }
 
@@ -34,10 +34,10 @@ export interface ChatSessionBase {
   updated_at: string;
 }
 
-// For list view in ChatHistory, history field is not essential
 export interface ChatSession extends ChatSessionBase {
-  // No history field here by default for lighter list items
+  messageCount?: number;
 }
+
 
 export interface ChatSessionWithHistory extends ChatSessionBase {
   history: ChatMessage[];

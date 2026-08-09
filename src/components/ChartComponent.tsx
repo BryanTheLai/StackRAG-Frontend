@@ -32,7 +32,8 @@ const CHART_STYLES = {
       borderRadius: 'var(--rounded-box)',
       boxShadow: '0 4px 6px -1px var(--color-neutral), 0 2px 4px -1px var(--color-neutral)' // subtle shadow
     },
-    labelStyle: { color: 'var(--color-primary-content)', fontWeight: 'bold' as 'bold' },
+    labelStyle: { color: 'var(--color-primary-content)', fontWeight: 'bold' as const },
+
     itemStyle: { color: 'var(--color-base-content)' },
   },
   legend: {
@@ -197,9 +198,11 @@ export const ChartComponent: React.FC<ChartComponentProps> = React.memo(({ data 
         return chartRenderers.pie(data.data, data.pie_config, data.data_keys?.pie);
       case 'composed':
         return chartRenderers.composed(data.data, data.data_keys);
-      default:
+      default: {
         const exhaustiveCheck: never = data.type;
         return <div className="text-red-400">Unsupported chart type: {String(exhaustiveCheck)}</div>;
+      }
+
     }
   };
 

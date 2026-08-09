@@ -25,8 +25,12 @@ export async function signUp(email: string, password: string, metadata?: {
       // prefer the message property if present
       const msg = (error && (error.message || JSON.stringify(error))) || 'Sign up failed';
       const err = new Error(msg);
-      // attach raw error for debugging (non-enumerable so it won't leak in logs accidentally)
-      try { (err as any).raw = error; } catch {};
+      try {
+        Object.assign(err, { raw: error });
+      } catch {
+        // ignore property attachment failure
+      }
+
       throw err;
     }
 
